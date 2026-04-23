@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google';
 import Script from 'next/script';
 import './globals.css';
 import { SessionProvider } from '@/context/SessionContext';
+import { ColorSchemeScript, mantineHtmlProps } from '@mantine/core';
+import Providers from './providers';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -17,15 +19,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" {...mantineHtmlProps}>
       <head>
+        <ColorSchemeScript />
         {/* MediaPipe loaded globally so all exercise components can access window.Hands */}
         <Script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" strategy="beforeInteractive" />
       </head>
       <body className={inter.className}>
-        <SessionProvider>
-          {children}
-        </SessionProvider>
+        <Providers>
+          <SessionProvider>
+            {children}
+          </SessionProvider>
+        </Providers>
       </body>
     </html>
   );

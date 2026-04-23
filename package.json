@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@mantine/core": "^9.1.0",
+    "@mantine/hooks": "^9.1.0",
     "@mediapipe/drawing_utils": "^0.3.1675466124",
     "@mediapipe/hands": "^0.4.1675469240",
     "@mediapipe/pose": "^0.5.1675469404",
@@ -26,6 +28,8 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "postcss-preset-mantine": "^1.18.0",
+    "postcss-simple-vars": "^7.0.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

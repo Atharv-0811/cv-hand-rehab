@@ -1,8 +1,7 @@
-// src/app/providers.tsx
 "use client";
 
 import React from "react";
-import { Container, MantineProvider, createTheme } from "@mantine/core";
+import { Container, MantineProvider, createTheme, MantineColorsTuple } from "@mantine/core";
 import "@mantine/core/styles.css"; // required global styles for Mantine v7
 import { Poppins, Work_Sans } from "next/font/google";
 
@@ -24,7 +23,7 @@ const workSans = Work_Sans({
  * Theme override — keep this minimal and type-safe.
  * Use CSS variables (set on <html> in layout.tsx) to point Mantine to next/font variables.
  */
-const tealBrand: any = [
+const tealBrand: MantineColorsTuple = [
     '#E5F3F5',
     '#C6E4E9',
     '#A6D4DD',
@@ -37,7 +36,7 @@ const tealBrand: any = [
     '#09323D',
 ];
 
-const coralAccent: any = [
+const coralAccent: MantineColorsTuple = [
     '#FDE9E7',
     '#F9D3CE',
     '#F5B7AE',
@@ -50,7 +49,7 @@ const coralAccent: any = [
     '#5C201F',
 ];
 
-const sand: any = [
+const sand: MantineColorsTuple = [
     '#FDFBF7',
     '#F7F3EC',
     '#EFE7D9',
@@ -63,7 +62,7 @@ const sand: any = [
     '#5B4333',
 ];
 
-const slate: any = [
+const slate: MantineColorsTuple = [
     '#F8F8F8',
     '#EDEDED',
     '#DFDFDF',
@@ -76,7 +75,7 @@ const slate: any = [
     '#262626',
 ];
 
-const successGreen: any = [
+const successGreen: MantineColorsTuple = [
     '#E6F7ED',
     '#C3EBD2',
     '#9FDFB8',
@@ -89,7 +88,7 @@ const successGreen: any = [
     '#09351B',
 ];
 
-const warningAmber: any = [
+const warningAmber: MantineColorsTuple = [
     '#FFF7E6',
     '#FFE9BF',
     '#FFDA99',
@@ -102,7 +101,7 @@ const warningAmber: any = [
     '#8A4807',
 ];
 
-const dangerRed: any = [
+const dangerRed: MantineColorsTuple = [
     '#FDECEC',
     '#F9D0D0',
     '#F3A9A9',
@@ -115,7 +114,7 @@ const dangerRed: any = [
     '#520B0B',
 ];
 
-const infoBlue: any = [
+const infoBlue: MantineColorsTuple = [
     '#E7F1FF',
     '#C7DDFF',
     '#A6C8FF',
@@ -128,7 +127,7 @@ const infoBlue: any = [
     '#0C214A',
 ];
 
-const softPurple: any = [
+const softPurple: MantineColorsTuple = [
     '#F4E9FF',
     '#E3CCFF',
     '#D0ADFF',
@@ -141,7 +140,7 @@ const softPurple: any = [
     '#231244',
 ];
 
-const mint: any = [
+const mint: MantineColorsTuple = [
     '#E7FAF5',
     '#C5F0E1',
     '#A3E6CD',
@@ -201,7 +200,7 @@ const theme = createTheme({
         xl: '20px',
         lg: '18px',
         md: '16px',
-    },
+    } as any,
     spacing: {
         xxs: '0.25rem', // 4px
         xs: '0.5rem', // 8px
@@ -221,7 +220,7 @@ const theme = createTheme({
         xl6: '16rem', // 256px
         full: '100%', // 100%
         half: '50%', // 50%
-    },
+    } as any,
     components: {
         Container: Container.extend({
             defaultProps: {
@@ -290,10 +289,6 @@ const theme = createTheme({
     },
 });
 
-/**
- * Providers component — include the font variables classes on the wrapper here if needed,
- * but we set css variables on <html> in layout.tsx (server component) for maximum compatibility.
- */
 export default function Providers({ children }: { children: React.ReactNode }) {
     return (
         <MantineProvider

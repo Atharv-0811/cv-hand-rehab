@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-export const useHandTracking = (videoRef: React.RefObject<HTMLVideoElement>, isTestRunning: boolean) => {
+export const useHandTracking = (videoRef: React.RefObject<HTMLVideoElement | null>, isTestRunning: boolean) => {
   const [controlValue, setControlValue] = useState<number>(0);
   const [currentRatio, setCurrentRatio] = useState<number>(0); 
   const [isTracked, setIsTracked] = useState<boolean>(false);

@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react';
 
 interface CameraMirrorProps {
-  videoRef: React.RefObject<HTMLVideoElement>;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
   onReady: () => void;
   onError: (err: string) => void;
 }
