@@ -75,6 +75,19 @@ const dangerRed: MantineColorsTuple = [
     '#520B0B',
 ];
 
+const warningAmber: MantineColorsTuple = [
+    '#FFF7E6',
+    '#FFE9BF',
+    '#FFDA99',
+    '#FFCB73',
+    '#FFBC4D',
+    '#FFAE26',
+    '#F29C14',
+    '#D5810F',
+    '#B6660B',
+    '#8A4807',
+];
+
 const theme = createTheme({
     primaryColor: 'primary',
     primaryShade: {
@@ -85,6 +98,7 @@ const theme = createTheme({
         primary,
         carbonBlack,
         successGreen,
+        warningAmber,
         dangerRed,
     },
     defaultRadius: 'md',

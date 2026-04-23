@@ -26,9 +26,9 @@ export const useAudioEngine = () => {
   const initAudio = useCallback(async () => {
     if (audioCtx.current) return;
     audioCtx.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    
+
     try {
-      const response = await fetch('/loop.mp3'); 
+      const response = await fetch('/loop.mp3');
       const audioBuffer = await audioCtx.current.decodeAudioData(await response.arrayBuffer());
 
       sourceNode.current = audioCtx.current.createBufferSource();
@@ -43,12 +43,14 @@ export const useAudioEngine = () => {
 
       sourceNode.current.buffer = audioBuffer;
       sourceNode.current.loop = true;
-      waveShaper.curve = makeDistortionCurve(10); 
+      // 1. Lower the distortion drive amount from 10 down to 2 or 3.
+      waveShaper.curve = makeDistortionCurve(2);
       waveShaper.oversample = '2x';
-      
-      hpfNode.type = 'highpass'; hpfNode.Q.value = 1; hpfNode.frequency.value = 0; 
-      lpfNode.type = 'lowpass'; lpfNode.Q.value = 1; lpfNode.frequency.value = 0; 
-      gainNode.gain.value = 0.8; 
+
+      // 2. Flatten the Q value to 0.7071 (Butterworth) to prevent resonant peaking on the sweep.
+      hpfNode.type = 'highpass'; hpfNode.Q.value = 0.7071; hpfNode.frequency.value = 0;
+      lpfNode.type = 'lowpass'; lpfNode.Q.value = 0.7071; lpfNode.frequency.value = 0;
+      gainNode.gain.value = 0.8;
 
       sourceNode.current.connect(waveShaper);
       waveShaper.connect(hpfNode);
@@ -67,7 +69,7 @@ export const useAudioEngine = () => {
         hpfNode.frequency.value = 1000;
       }
 
-      sourceNode.current.start(); 
+      sourceNode.current.start();
       // NEW: Immediately pause the audio context so it waits for the user
       await audioCtx.current.suspend();
       setIsAudioLoaded(true);
@@ -124,7 +126,7 @@ export const useAudioEngine = () => {
   }, []);
 
   const stopAudio = useCallback(() => {
-    if (sourceNode.current) { try { sourceNode.current.stop(); } catch(e) {} sourceNode.current.disconnect(); }
+    if (sourceNode.current) { try { sourceNode.current.stop(); } catch (e) { } sourceNode.current.disconnect(); }
     if (cvNode.current) cvNode.current.disconnect();
     cvNode.current = null;
     hpfNodeRef.current = null;
