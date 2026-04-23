@@ -15,7 +15,7 @@ export function LevelBanner({ visible, currentLevel, dailyStreak }: LevelBannerP
       aria-live="polite"
       aria-atomic="true"
     >
-      <div className="rounded-md border border-emerald-500 bg-zinc-100 text-zinc-900 px-5 py-3 shadow-lg">
+      <div className="rounded-md border border-emerald-500 bg-primary-500 text-brandWhite px-5 py-3 shadow-lg">
         <p className="text-xs tracking-widest font-semibold">LEVEL UP</p>
         <p className="font-mono text-sm mt-1">
           Level {currentLevel} reached

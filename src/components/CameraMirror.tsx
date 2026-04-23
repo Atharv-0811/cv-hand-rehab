@@ -1,5 +1,7 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
+import Lottie from 'lottie-react';
+import loadingAnimation from '../../public/animations/loading.json';
 
 interface CameraMirrorProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -43,7 +45,12 @@ export const CameraMirror = ({ videoRef, onReady, onError }: CameraMirrorProps) 
 
   return (
     <div className="relative w-full bg-carbonBlack-900 border border-carbonBlack-200 shadow-sm rounded-md overflow-hidden aspect-video flex items-center justify-center">
-      {camStatus === 'loading' && <p className="text-carbonBlack-400 font-mono absolute z-10">Requesting Camera...</p>}
+      {camStatus === 'loading' && (
+        <div className="absolute z-10 flex flex-col items-center justify-center">
+          <Lottie animationData={loadingAnimation} loop={true} style={{ width: 150, height: 150 }} />
+          <p className="text-carbonBlack-400 font-mono mt-2 text-sm">Initializing Hardware...</p>
+        </div>
+      )}
       {camStatus === 'error' && <p className="text-red-500 font-mono absolute z-10 text-center">⚠ Camera Error</p>}
       
       <video
