@@ -23,56 +23,30 @@ const workSans = Work_Sans({
  * Theme override — keep this minimal and type-safe.
  * Use CSS variables (set on <html> in layout.tsx) to point Mantine to next/font variables.
  */
-const tealBrand: MantineColorsTuple = [
-    '#E5F3F5',
-    '#C6E4E9',
-    '#A6D4DD',
-    '#7FBECB',
-    '#57A7B9',
-    '#358CA4',
-    '#1E6F84',
-    '#145365', // dark-ish
-    '#0F4C5C', // main
-    '#09323D',
+const primary: MantineColorsTuple = [
+    "#f6f7fc",
+    "#e9ecf8",
+    "#dbe0f3",
+    "#ced4ef",
+    "#c1c8ea",
+    "#a6b1e1", // main
+    "#858eb4",
+    "#6c7392",
+    "#535971",
+    "#3a3e4f"
 ];
 
-const coralAccent: MantineColorsTuple = [
-    '#FDE9E7',
-    '#F9D3CE',
-    '#F5B7AE',
-    '#F0958A',
-    '#EB7467',
-    '#E3645B', // main
-    '#C44F48',
-    '#A13E3A',
-    '#7F2F2C',
-    '#5C201F',
-];
-
-const sand: MantineColorsTuple = [
-    '#FDFBF7',
-    '#F7F3EC',
-    '#EFE7D9',
-    '#E4D6C3',
-    '#D7C3A9',
-    '#C8AF8E',
-    '#B19270',
-    '#97775A',
-    '#7A5D47',
-    '#5B4333',
-];
-
-const slate: MantineColorsTuple = [
-    '#F8F8F8',
-    '#EDEDED',
-    '#DFDFDF',
-    '#CFCFCF',
-    '#B8B8B8',
-    '#9E9E9E',
-    '#7F7F7F',
-    '#626262',
-    '#444444',
-    '#262626',
+const carbonBlack: MantineColorsTuple = [
+    "#e9e9e9",
+    "#c9c8c8",
+    "#a8a7a7",
+    "#878785",
+    "#666664",
+    "#252422", // main
+    "#1e1d1b",
+    "#181716",
+    "#131211",
+    "#0d0d0c"
 ];
 
 const successGreen: MantineColorsTuple = [
@@ -88,19 +62,6 @@ const successGreen: MantineColorsTuple = [
     '#09351B',
 ];
 
-const warningAmber: MantineColorsTuple = [
-    '#FFF7E6',
-    '#FFE9BF',
-    '#FFDA99',
-    '#FFCB73',
-    '#FFBC4D',
-    '#FFAE26',
-    '#F29C14',
-    '#D5810F',
-    '#B6660B',
-    '#8A4807',
-];
-
 const dangerRed: MantineColorsTuple = [
     '#FDECEC',
     '#F9D0D0',
@@ -114,62 +75,17 @@ const dangerRed: MantineColorsTuple = [
     '#520B0B',
 ];
 
-const infoBlue: MantineColorsTuple = [
-    '#E7F1FF',
-    '#C7DDFF',
-    '#A6C8FF',
-    '#82B0FF',
-    '#5D98FF',
-    '#3A81F7',
-    '#2865D0',
-    '#1D4EA4',
-    '#143777',
-    '#0C214A',
-];
-
-const softPurple: MantineColorsTuple = [
-    '#F4E9FF',
-    '#E3CCFF',
-    '#D0ADFF',
-    '#BC8DFF',
-    '#A86DFF',
-    '#924EF7',
-    '#763CCE',
-    '#5A2EA0',
-    '#3E2072',
-    '#231244',
-];
-
-const mint: MantineColorsTuple = [
-    '#E7FAF5',
-    '#C5F0E1',
-    '#A3E6CD',
-    '#7CDAB5',
-    '#57CE9D',
-    '#38C388',
-    '#279E6E',
-    '#1D7B56',
-    '#14573E',
-    '#0B3325',
-];
-
 const theme = createTheme({
-    primaryColor: 'tealBrand',
+    primaryColor: 'primary',
     primaryShade: {
-        light: 6,
-        dark: 8,
+        light: 5,
+        dark: 5,
     },
     colors: {
-        tealBrand,
-        coralAccent,
-        sand,
-        slate,
+        primary,
+        carbonBlack,
         successGreen,
-        warningAmber,
         dangerRed,
-        infoBlue,
-        softPurple,
-        mint,
     },
     defaultRadius: 'md',
     fontFamily: 'var(--mantine-font-family)',

@@ -42,8 +42,8 @@ export const CameraMirror = ({ videoRef, onReady, onError }: CameraMirrorProps) 
   }, []); // <-- EMPTY ARRAY STOPS THE SEIZURE FLICKER
 
   return (
-    <div className="relative w-full bg-zinc-950 border border-zinc-700 rounded-md overflow-hidden aspect-video flex items-center justify-center">
-      {camStatus === 'loading' && <p className="text-zinc-500 font-mono absolute z-10">Requesting Camera...</p>}
+    <div className="relative w-full bg-carbonBlack-900 border border-carbonBlack-200 shadow-sm rounded-md overflow-hidden aspect-video flex items-center justify-center">
+      {camStatus === 'loading' && <p className="text-carbonBlack-400 font-mono absolute z-10">Requesting Camera...</p>}
       {camStatus === 'error' && <p className="text-red-500 font-mono absolute z-10 text-center">⚠ Camera Error</p>}
       
       <video
