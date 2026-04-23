@@ -1,13 +1,12 @@
 import { useRef, useCallback, useState } from 'react';
 
-const makeDistortionCurve = (amount = 20) => {
-  const k = typeof amount === 'number' ? amount : 50;
+const makeDistortionCurve = (amount = 5) => {
   const n_samples = 44100;
   const curve = new Float32Array(n_samples);
-  const deg = Math.PI / 180;
   for (let i = 0; i < n_samples; ++i) {
     const x = (i * 2) / n_samples - 1;
-    curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+    // Tanh gives warm analog saturation
+    curve[i] = Math.tanh(x * amount);
   }
   return curve;
 };
@@ -18,6 +17,11 @@ export const useAudioEngine = () => {
   const cvNode = useRef<AudioWorkletNode | null>(null);
   const hpfNodeRef = useRef<BiquadFilterNode | null>(null);
   const lpfNodeRef = useRef<BiquadFilterNode | null>(null);
+  
+  // NEW: Refs for our Parallel Dry/Wet Mix
+  const dryGainRef = useRef<GainNode | null>(null);
+  const wetGainRef = useRef<GainNode | null>(null);
+
   const fallbackRatioRef = useRef(0);
   const fallbackTargetRef = useRef(0);
   const fallbackTrackedRef = useRef(false);
@@ -35,28 +39,51 @@ export const useAudioEngine = () => {
       const waveShaper = audioCtx.current.createWaveShaper();
       const hpfNode = audioCtx.current.createBiquadFilter();
       const lpfNode = audioCtx.current.createBiquadFilter();
-      const gainNode = audioCtx.current.createGain();
+      const masterGain = audioCtx.current.createGain();
+      
+      // Create our split paths
+      const dryGain = audioCtx.current.createGain();
+      const wetGain = audioCtx.current.createGain();
+
       const supportsWorklet = !!audioCtx.current.audioWorklet && typeof AudioWorkletNode !== 'undefined';
 
       hpfNodeRef.current = hpfNode;
       lpfNodeRef.current = lpfNode;
+      dryGainRef.current = dryGain;
+      wetGainRef.current = wetGain;
 
       sourceNode.current.buffer = audioBuffer;
       sourceNode.current.loop = true;
-      // 1. Lower the distortion drive amount from 10 down to 2 or 3.
-      waveShaper.curve = makeDistortionCurve(2);
-      waveShaper.oversample = '2x';
+      
+      // Setup Distortion
+      waveShaper.curve = makeDistortionCurve(5);
+      waveShaper.oversample = '4x';
 
-      // 2. Flatten the Q value to 0.7071 (Butterworth) to prevent resonant peaking on the sweep.
+      // Setup Filters
       hpfNode.type = 'highpass'; hpfNode.Q.value = 0.7071; hpfNode.frequency.value = 0;
       lpfNode.type = 'lowpass'; lpfNode.Q.value = 0.7071; lpfNode.frequency.value = 0;
-      gainNode.gain.value = 0.8;
+      masterGain.gain.value = 0.8;
 
+      // INITIAL ROUTING STATE: Fist is closed (0.0), so Dry is 0, Wet is active but volume reduced to match
+      dryGain.gain.value = 0.0;
+      wetGain.gain.value = 0.6; // Reduced from 1.0 because distortion naturally increases loudness
+
+      // --- PARALLEL ROUTING ---
+      
+      // Path 1: Clean Signal -> Dry Gain -> Filters
+      sourceNode.current.connect(dryGain);
+      dryGain.connect(hpfNode);
+      
+      // Path 2: Distorted Signal -> Wet Gain -> Filters
       sourceNode.current.connect(waveShaper);
-      waveShaper.connect(hpfNode);
+      waveShaper.connect(wetGain);
+      wetGain.connect(hpfNode);
+
+      // --- END PARALLEL ROUTING ---
+
       hpfNode.connect(lpfNode);
-      lpfNode.connect(gainNode);
-      gainNode.connect(audioCtx.current.destination);
+      lpfNode.connect(masterGain);
+      masterGain.connect(audioCtx.current.destination);
 
       if (supportsWorklet) {
         await audioCtx.current.audioWorklet.addModule('/cv-processor.js');
@@ -64,13 +91,11 @@ export const useAudioEngine = () => {
         cvNode.current.connect(lpfNode.frequency, 0);
         cvNode.current.connect(hpfNode.frequency, 1);
       } else {
-        // Fallback for browsers without AudioWorklet support.
         lpfNode.frequency.value = 2000;
         hpfNode.frequency.value = 1000;
       }
 
       sourceNode.current.start();
-      // NEW: Immediately pause the audio context so it waits for the user
       await audioCtx.current.suspend();
       setIsAudioLoaded(true);
     } catch (error) {
@@ -78,7 +103,6 @@ export const useAudioEngine = () => {
     }
   }, []);
 
-  // NEW: Explicit Play/Pause controls
   const playAudio = useCallback(async () => {
     if (audioCtx.current && audioCtx.current.state === 'suspended') {
       await audioCtx.current.resume();
@@ -92,13 +116,30 @@ export const useAudioEngine = () => {
   }, []);
 
   const updateFilter = useCallback((value: number) => {
+    // Clamp the value just to be safe
+    const safeValue = Math.max(0, Math.min(1, value));
+
+    // NEW: Handle the crossfade on the main thread
+    if (audioCtx.current && dryGainRef.current && wetGainRef.current) {
+      const now = audioCtx.current.currentTime;
+      
+      // Equal-power crossfade math. 
+      // As safeValue approaches 1 (Hand Open): Dry goes to 100%, Wet goes to 0%
+      const dryLevel = Math.sin(safeValue * (Math.PI / 2));
+      const wetLevel = Math.cos(safeValue * (Math.PI / 2)) * 0.6; // Keep the 0.6 limiter on wet volume
+      
+      dryGainRef.current.gain.setTargetAtTime(dryLevel, now, 0.03);
+      wetGainRef.current.gain.setTargetAtTime(wetLevel, now, 0.03);
+    }
+
     if (cvNode.current) {
-      cvNode.current.port.postMessage({ type: 'SET_RATIO', value });
+      cvNode.current.port.postMessage({ type: 'SET_RATIO', value: safeValue });
       return;
     }
 
+    // Fallback logic
     if (!audioCtx.current || !hpfNodeRef.current || !lpfNodeRef.current) return;
-    fallbackTargetRef.current = Math.max(0, Math.min(1, value));
+    fallbackTargetRef.current = safeValue;
     const delta = fallbackTargetRef.current - fallbackRatioRef.current;
     const maxRise = 0.04;
     const maxFall = 0.02;
@@ -112,9 +153,9 @@ export const useAudioEngine = () => {
 
     const lpfFreq = 2000 * Math.pow(10, fallbackRatioRef.current);
     const hpfFreq = 1000 * Math.pow(0.02, fallbackRatioRef.current);
-    const now = audioCtx.current.currentTime;
-    lpfNodeRef.current.frequency.setTargetAtTime(lpfFreq, now, 0.03);
-    hpfNodeRef.current.frequency.setTargetAtTime(hpfFreq, now, 0.03);
+    const nowFallback = audioCtx.current.currentTime;
+    lpfNodeRef.current.frequency.setTargetAtTime(lpfFreq, nowFallback, 0.03);
+    hpfNodeRef.current.frequency.setTargetAtTime(hpfFreq, nowFallback, 0.03);
   }, []);
 
   const setTrackingStatus = useCallback((status: boolean) => {
@@ -131,6 +172,8 @@ export const useAudioEngine = () => {
     cvNode.current = null;
     hpfNodeRef.current = null;
     lpfNodeRef.current = null;
+    dryGainRef.current = null;
+    wetGainRef.current = null;
     fallbackRatioRef.current = 0;
     fallbackTargetRef.current = 0;
     fallbackTrackedRef.current = false;
