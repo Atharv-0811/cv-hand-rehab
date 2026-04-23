@@ -1,145 +1,111 @@
 import { useEffect, useRef, useState } from 'react';
 
-export const useHandTracking = (videoRef: React.RefObject<HTMLVideoElement>) => {
-    const [controlValue, setControlValue] = useState<number>(0);
-    const [currentRatio, setCurrentRatio] = useState<number>(0);
-    const [isTracked, setIsTracked] = useState<boolean>(false); // NEW
-    const lastSeenTime = useRef<number>(0); // NEW
-    const WATCHDOG_TIMEOUT = 800; // ms // NEW
+export const useHandTracking = (videoRef: React.RefObject<HTMLVideoElement>, isTestRunning: boolean) => {
+  const [controlValue, setControlValue] = useState<number>(0);
+  const [currentRatio, setCurrentRatio] = useState<number>(0); 
+  const [isTracked, setIsTracked] = useState<boolean>(false);
+  
+  // Split the logic: Today's goal vs Historical Best
+  const [allTimeBest, setAllTimeBest] = useState<number | null>(null); 
+  const [sessionTarget, setSessionTarget] = useState<number | null>(null);
+  const [hasLeveledUp, setHasLeveledUp] = useState<boolean>(false);
 
-    const minRatio = useRef(0.8);
-    const maxRatio = useRef(2.5);
+  const minRatio = useRef(0.8); 
 
-    // Two-stage filtering arrays
-    const medianHistory = useRef<number[]>([]);
-    const MEDIAN_WINDOW = 3; // Discards single-frame teleports
+  const medianHistory = useRef<number[]>([]);
+  const smoothHistory = useRef<number[]>([]);
+  const lastSeenTime = useRef<number>(0);
 
-    const smoothHistory = useRef<number[]>([]);
-    const SMOOTH_WINDOW = 2; // Low-latency averaging
+  // Load historical best on mount
+  useEffect(() => {
+    const savedBest = localStorage.getItem('physio_pb_hand_extension');
+    if (savedBest) setAllTimeBest(parseFloat(savedBest));
+  }, []);
 
-    useEffect(() => {
-        let handsModel: any = null;
-        let animationFrameId: number;
-        let isProcessing = false;
-        let lastVideoTime = -1;
-        let lastProcessTime = 0;
-        const TARGET_FPS = 15;
-        const frameInterval = 1000 / TARGET_FPS;
+  // Set today's specific baseline (Silent Calibration Phase)
+  const setBaseline = (baseline: number) => {
+    setSessionTarget(baseline * 1.05); // Today's target is 5% harder than today's stretch
+  };
 
-        const startHands = async () => {
-            while (!(window as any).Hands) {
-                await new Promise((resolve) => setTimeout(resolve, 100));
+  useEffect(() => {
+    let handsModel: any = null;
+    let animationFrameId: number;
+    let isProcessing = false;
+    let lastProcessTime = 0;
+
+    const startHands = async () => {
+      while (!(window as any).Hands) await new Promise(r => setTimeout(r, 100));
+      const Hands = (window as any).Hands;
+      handsModel = new Hands({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+      handsModel.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+
+      handsModel.onResults((results: any) => {
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+          lastSeenTime.current = performance.now();
+          if (!isTracked) setIsTracked(true);
+
+          const landmarks = results.multiHandLandmarks[0];
+          const calcDist3D = (p1: any, p2: any) => Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
+          
+          let palmLength = calcDist3D(landmarks[0], landmarks[9]);
+          if (palmLength === 0) palmLength = 0.001;
+          const rawRatio = calcDist3D(landmarks[0], landmarks[12]) / palmLength;
+
+          medianHistory.current.push(rawRatio);
+          if (medianHistory.current.length > 3) medianHistory.current.shift();
+          const sorted = [...medianHistory.current].sort((a, b) => a - b);
+          const filteredRatio = sorted.length === 3 ? sorted[1] : rawRatio;
+
+          smoothHistory.current.push(filteredRatio);
+          if (smoothHistory.current.length > 2) smoothHistory.current.shift();
+          const smoothedRatio = smoothHistory.current.reduce((a, b) => a + b, 0) / smoothHistory.current.length;
+          
+          setCurrentRatio(smoothedRatio);
+
+          // Calculate audio map based on TODAY'S target, not all-time best
+          const activeTarget = sessionTarget !== null ? sessionTarget : 2.5;
+          const mappedValue = Math.max(0.0, Math.min(1.0, 
+            (smoothedRatio - minRatio.current) / (activeTarget - minRatio.current)
+          ));
+          setControlValue(mappedValue);
+
+          // Progressive Overload Logic (Only runs during the actual test)
+          if (isTestRunning && sessionTarget !== null && sorted.length === 3) {
+            
+            // 1. Push today's goalpost if they beat it
+            if (smoothedRatio > sessionTarget) {
+              setSessionTarget(smoothedRatio * 1.05); 
             }
 
-            const Hands = (window as any).Hands;
+            // 2. Did they beat their ALL-TIME historical best?
+            if (allTimeBest === null || smoothedRatio > allTimeBest) {
+              setAllTimeBest(smoothedRatio);
+              localStorage.setItem('physio_pb_hand_extension', smoothedRatio.toString());
+              setHasLeveledUp(true);
+              setTimeout(() => setHasLeveledUp(false), 3000);
+            }
+          }
 
-            handsModel = new Hands({
-                locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
-            });
+        } else {
+          if (isTracked && performance.now() - lastSeenTime.current > 800) setIsTracked(false);
+        }
+      });
 
-            handsModel.setOptions({
-                maxNumHands: 1,
-                modelComplexity: 0,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5,
-            });
+      const processVideo = async () => {
+        if (performance.now() - lastProcessTime >= 1000/15 && videoRef.current && videoRef.current.readyState >= 2 && !isProcessing) {
+          isProcessing = true;
+          lastProcessTime = performance.now();
+          try { await handsModel.send({ image: videoRef.current }); } 
+          catch (e) {} finally { isProcessing = false; }
+        }
+        animationFrameId = requestAnimationFrame(processVideo);
+      };
+      processVideo();
+    };
 
-            handsModel.onResults((results: any) => {
-                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                    // Hand detected! Reset the watchdog.
-                    lastSeenTime.current = performance.now();
-                    if (!isTracked) setIsTracked(true);
+    startHands();
+    return () => { if (handsModel) handsModel.close(); if (animationFrameId) cancelAnimationFrame(animationFrameId); };
+  }, [videoRef, isTracked, isTestRunning, sessionTarget, allTimeBest]); 
 
-                    const landmarks = results.multiHandLandmarks[0];
-
-                    const wrist = landmarks[0];
-                    const middleBase = landmarks[9];
-                    const middleTip = landmarks[12];
-
-                    // UPGRADE 1: 3D Euclidean Distance (Math.hypot handles 3 arguments natively)
-                    const calcDist3D = (p1: any, p2: any) =>
-                        Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
-
-                    let palmLength = calcDist3D(wrist, middleBase);
-                    const stretchLength = calcDist3D(wrist, middleTip);
-
-                    if (palmLength === 0) palmLength = 0.001;
-                    const rawRatio = stretchLength / palmLength;
-
-                    // UPGRADE 2: Median Filter (Sorts last 3 frames, picks the middle one)
-                    medianHistory.current.push(rawRatio);
-                    if (medianHistory.current.length > MEDIAN_WINDOW) {
-                        medianHistory.current.shift();
-                    }
-
-                    let filteredRatio = rawRatio;
-                    if (medianHistory.current.length === MEDIAN_WINDOW) {
-                        const sorted = [...medianHistory.current].sort((a, b) => a - b);
-                        filteredRatio = sorted[1]; // Get the median value
-                    }
-
-                    // Stage 2: Low-latency moving average
-                    smoothHistory.current.push(filteredRatio);
-                    if (smoothHistory.current.length > SMOOTH_WINDOW) {
-                        smoothHistory.current.shift();
-                    }
-                    const smoothedRatio = smoothHistory.current.reduce((a, b) => a + b, 0) / smoothHistory.current.length;
-
-                    setCurrentRatio(smoothedRatio);
-
-                    const mapRange = (x: number, inMin: number, inMax: number, outMin: number, outMax: number) => {
-                        if (inMax === inMin) return outMin;
-                        const mapped = (x - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
-                        return Math.max(outMin, Math.min(outMax, mapped));
-                    };
-
-                    const mappedValue = mapRange(smoothedRatio, minRatio.current, maxRatio.current, 0.0, 1.0);
-                    setControlValue(mappedValue);
-                } else {
-                    // No hand detected in this frame. Check the watchdog timer.
-                    if (isTracked && performance.now() - lastSeenTime.current > WATCHDOG_TIMEOUT) {
-                        setIsTracked(false);
-                    }
-                }
-            });
-
-            const processVideo = async () => {
-                const now = performance.now();
-
-                if (now - lastProcessTime >= frameInterval) {
-                    if (videoRef.current && videoRef.current.readyState >= 2 && !isProcessing) {
-                        if (videoRef.current.currentTime !== lastVideoTime) {
-
-                            isProcessing = true;
-                            lastProcessTime = now;
-                            lastVideoTime = videoRef.current.currentTime;
-
-                            try {
-                                await handsModel.send({ image: videoRef.current });
-                            } catch (e) {
-                                // Silent fail on dropped frames
-                            } finally {
-                                isProcessing = false;
-                            }
-                        }
-                    }
-                }
-                animationFrameId = requestAnimationFrame(processVideo);
-            };
-
-            processVideo();
-        };
-
-        startHands();
-
-        return () => {
-            if (handsModel) handsModel.close();
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        };
-    }, [videoRef]);
-
-    const calibrateMin = () => { minRatio.current = currentRatio; };
-    const calibrateMax = () => { maxRatio.current = currentRatio; };
-
-    return { controlValue, currentRatio, calibrateMin, calibrateMax, isTracked };
+  return { controlValue, currentRatio, isTracked, allTimeBest, sessionTarget, hasLeveledUp, setBaseline };
 };

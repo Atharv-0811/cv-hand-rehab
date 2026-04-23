@@ -1,89 +1,94 @@
 import { useRef, useCallback, useState } from 'react';
 
+const makeDistortionCurve = (amount = 20) => {
+  const k = typeof amount === 'number' ? amount : 50;
+  const n_samples = 44100;
+  const curve = new Float32Array(n_samples);
+  const deg = Math.PI / 180;
+  for (let i = 0; i < n_samples; ++i) {
+    const x = (i * 2) / n_samples - 1;
+    curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+  }
+  return curve;
+};
+
 export const useAudioEngine = () => {
   const audioCtx = useRef<AudioContext | null>(null);
   const sourceNode = useRef<AudioBufferSourceNode | null>(null);
   const cvNode = useRef<AudioWorkletNode | null>(null);
-
   const [isAudioLoaded, setIsAudioLoaded] = useState(false);
 
   const initAudio = useCallback(async () => {
     if (audioCtx.current) return;
-
     audioCtx.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-
+    
     try {
-      // 1. Load the Worklet file 
       await audioCtx.current.audioWorklet.addModule('/cv-processor.js');
+      const response = await fetch('/loop.mp3'); 
+      const audioBuffer = await audioCtx.current.decodeAudioData(await response.arrayBuffer());
 
-      // 2. Fetch and decode the loop
-      const response = await fetch('/loop.mp3');
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await audioCtx.current.decodeAudioData(arrayBuffer);
-
-      // 3. Create our Nodes (filterNode is now a local variable!)
-      const filterNode = audioCtx.current.createBiquadFilter();
       sourceNode.current = audioCtx.current.createBufferSource();
+      const waveShaper = audioCtx.current.createWaveShaper();
+      const hpfNode = audioCtx.current.createBiquadFilter();
+      const lpfNode = audioCtx.current.createBiquadFilter();
       const gainNode = audioCtx.current.createGain();
+      
+      cvNode.current = new AudioWorkletNode(audioCtx.current, 'cv-processor', { numberOfOutputs: 2 });
 
-      // Instantiate our custom CV Worklet
-      cvNode.current = new AudioWorkletNode(audioCtx.current, 'cv-processor');
-
-      // 4. Configure Audio Nodes 
       sourceNode.current.buffer = audioBuffer;
       sourceNode.current.loop = true;
+      waveShaper.curve = makeDistortionCurve(10); 
+      waveShaper.oversample = '2x';
+      
+      hpfNode.type = 'highpass'; hpfNode.Q.value = 1; hpfNode.frequency.value = 0; 
+      lpfNode.type = 'lowpass'; lpfNode.Q.value = 1; lpfNode.frequency.value = 0; 
+      gainNode.gain.value = 0.8; 
 
-      // FIXED: Removed `.current` from filterNode!
-      filterNode.type = 'lowpass';
-      filterNode.Q.value = 2;
-      filterNode.frequency.value = 0; // The worklet takes over from 0
-
-      gainNode.gain.value = 0.8;
-
-      // 5. The Audio Patching
-      sourceNode.current.connect(filterNode);
-      filterNode.connect(gainNode);
+      sourceNode.current.connect(waveShaper);
+      waveShaper.connect(hpfNode);
+      hpfNode.connect(lpfNode);
+      lpfNode.connect(gainNode);
       gainNode.connect(audioCtx.current.destination);
 
-      // 6. The CV Patching: Worklet output -> Filter frequency
-      cvNode.current.connect(filterNode.frequency);
+      cvNode.current.connect(lpfNode.frequency, 0);
+      cvNode.current.connect(hpfNode.frequency, 1);
 
-      sourceNode.current.start();
+      sourceNode.current.start(); 
+      // NEW: Immediately pause the audio context so it waits for the user
+      await audioCtx.current.suspend();
       setIsAudioLoaded(true);
-
     } catch (error) {
       console.error("Audio initialization failed:", error);
     }
   }, []);
 
-  // Now we just message the Worklet, no more main-thread math
-  const updateFilter = useCallback((value: number) => {
-    if (cvNode.current) {
-      cvNode.current.port.postMessage({ type: 'SET_RATIO', value });
+  // NEW: Explicit Play/Pause controls
+  const playAudio = useCallback(async () => {
+    if (audioCtx.current && audioCtx.current.state === 'suspended') {
+      await audioCtx.current.resume();
     }
   }, []);
 
-  // ADD THIS NEW FUNCTION:
-  const setTrackingStatus = useCallback((status: boolean) => {
-    if (cvNode.current) {
-      cvNode.current.port.postMessage({ type: 'SET_TRACKING', value: status });
+  const pauseAudio = useCallback(async () => {
+    if (audioCtx.current && audioCtx.current.state === 'running') {
+      await audioCtx.current.suspend();
     }
+  }, []);
+
+  const updateFilter = useCallback((value: number) => {
+    if (cvNode.current) cvNode.current.port.postMessage({ type: 'SET_RATIO', value });
+  }, []);
+
+  const setTrackingStatus = useCallback((status: boolean) => {
+    if (cvNode.current) cvNode.current.port.postMessage({ type: 'SET_TRACKING', value: status });
   }, []);
 
   const stopAudio = useCallback(() => {
-    if (sourceNode.current) {
-      try { sourceNode.current.stop(); } catch (e) { }
-      sourceNode.current.disconnect();
-    }
-    if (cvNode.current) {
-      cvNode.current.disconnect();
-    }
-    if (audioCtx.current) {
-      audioCtx.current.close();
-      audioCtx.current = null;
-    }
+    if (sourceNode.current) { try { sourceNode.current.stop(); } catch(e) {} sourceNode.current.disconnect(); }
+    if (cvNode.current) cvNode.current.disconnect();
+    if (audioCtx.current) { audioCtx.current.close(); audioCtx.current = null; }
     setIsAudioLoaded(false);
   }, []);
 
-  return { initAudio, updateFilter, setTrackingStatus, stopAudio, isAudioLoaded };
+  return { initAudio, playAudio, pauseAudio, updateFilter, setTrackingStatus, stopAudio, isAudioLoaded };
 };

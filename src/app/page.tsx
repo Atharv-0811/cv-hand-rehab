@@ -10,8 +10,8 @@ export default function Dashboard() {
       
       {/* Header Area */}
       <div className="w-full max-w-4xl flex justify-between items-center mb-12 border-b border-slate-800 pb-6">
-        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-          Physio-CV
+        <h1 className="text-3xl font-bold text-zinc-100 tracking-tight">
+          Hand Rehab using Auditory Feedback
         </h1>
         <div className="flex items-center gap-3 bg-slate-900 px-4 py-2 rounded-full border border-slate-800">
           <span className="text-sm text-slate-400 uppercase tracking-wide">Total Score</span>
