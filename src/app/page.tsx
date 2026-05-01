@@ -29,7 +29,10 @@ import {
   IconTrophy,
   IconFlame,
   IconStars,
+  IconHandGrab,
 } from '@tabler/icons-react';
+import SequentialPinch from '@/components/exercises/SequentialPinch';
+import ArpeggioPath from '@/components/exercises/ArpeggioPath';
 
 export default function Dashboard() {
   const { activeExercise, setActiveExercise, globalScore } = useSession();
@@ -57,6 +60,17 @@ export default function Dashboard() {
       description: 'Improve finger mobility and palm flexibility using guided audio feedback.',
       badge: "Today's Exercise",
       badgeColor: 'successGreen',
+      available: true,
+    },
+    {
+      id: 'PINCER_GRIP',
+      icon: <IconHandGrab size={26} stroke={1.5} />,
+      iconBg: 'warningAmber.1',
+      iconColor: 'warningAmber.7',
+      label: 'Pincer Grip',
+      description: 'Pinch and drag through the air to trace a musical path.',
+      badge: "New AR",
+      badgeColor: 'warningAmber',
       available: true,
     },
     {
@@ -547,6 +561,14 @@ export default function Dashboard() {
 
         {activeExercise === 'HAND_OPEN_CLOSE' && (
           <HandOpenClose onSessionComplete={addXP} />
+        )}
+
+        {activeExercise === 'PINCER_GRIP' && (
+          <ArpeggioPath onSessionComplete={addXP} />
+        )}
+
+        {activeExercise === 'SEQUENTIAL_PINCH' && (
+          <SequentialPinch onSessionComplete={addXP} />
         )}
       </Container>
 

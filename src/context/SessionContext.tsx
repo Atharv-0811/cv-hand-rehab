@@ -2,7 +2,7 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 
 // Define the available exercises
-export type ExerciseType = 'MENU' | 'HAND_OPEN_CLOSE' | 'WRIST_ROTATION';
+export type ExerciseType = 'MENU' | 'HAND_OPEN_CLOSE' | 'WRIST_ROTATION' | 'PINCER_GRIP' | 'SEQUENTIAL_PINCH';
 
 interface SessionContextType {
   activeExercise: ExerciseType;
