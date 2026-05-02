@@ -1,17 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useCallback, useEffect, useMemo, useState, ReactNode } from 'react';
 
 const STORAGE_KEY = 'physio_gamification_v1';
 const XP_LEVEL_DIVISOR = 100;
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
-type HistoryEntry = {
+export type HistoryEntry = {
   date: string;
   xpEarned: number;
 };
 
-type GamificationState = {
+export type GamificationState = {
   currentLevel: number;
   currentXP: number;
   dailyStreak: number;
@@ -60,10 +60,25 @@ const calcXPWithinLevel = (totalXP: number, level: number) => {
   return Math.max(0, totalXP - levelFloor);
 };
 
-export const useGamification = () => {
+interface GamificationContextType extends GamificationState {
+  isHydrated: boolean;
+  totalXP: number;
+  xpToNextLevel: number;
+  progressInLevel: number;
+  hasLeveledUp: boolean;
+  recentXPEarned: number | null;
+  addXP: (amount: number) => void;
+  checkAndUpdateStreak: () => void;
+  getChartData: () => ChartPoint[];
+}
+
+const GamificationContext = createContext<GamificationContextType | undefined>(undefined);
+
+export function GamificationProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<GamificationState>(defaultState);
   const [isHydrated, setIsHydrated] = useState(false);
   const [hasLeveledUp, setHasLeveledUp] = useState(false);
+  const [recentXPEarned, setRecentXPEarned] = useState<number | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -131,6 +146,10 @@ export const useGamification = () => {
       if (nextLevel > previousLevel) {
         setHasLeveledUp(true);
         window.setTimeout(() => setHasLeveledUp(false), 2800);
+      } else {
+        // Only show XP banner if not leveling up, to avoid overlap
+        setRecentXPEarned(amount);
+        window.setTimeout(() => setRecentXPEarned(null), 2800);
       }
 
       return {
@@ -175,15 +194,30 @@ export const useGamification = () => {
     ? 0
     : ((totalXP - currentLevelFloorXP) / (nextLevelXP - currentLevelFloorXP)) * 100;
 
-  return {
-    ...state,
-    isHydrated,
-    totalXP,
-    xpToNextLevel,
-    progressInLevel: Math.max(0, Math.min(100, progressInLevel)),
-    hasLeveledUp,
-    addXP,
-    checkAndUpdateStreak,
-    getChartData,
-  };
-};
+  return (
+    <GamificationContext.Provider
+      value={{
+        ...state,
+        isHydrated,
+        totalXP,
+        xpToNextLevel,
+        progressInLevel: Math.max(0, Math.min(100, progressInLevel)),
+        hasLeveledUp,
+        recentXPEarned,
+        addXP,
+        checkAndUpdateStreak,
+        getChartData,
+      }}
+    >
+      {children}
+    </GamificationContext.Provider>
+  );
+}
+
+export function useGamificationContext() {
+  const context = useContext(GamificationContext);
+  if (context === undefined) {
+    throw new Error('useGamificationContext must be used within a GamificationProvider');
+  }
+  return context;
+}

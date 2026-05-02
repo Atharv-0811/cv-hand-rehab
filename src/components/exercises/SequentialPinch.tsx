@@ -12,7 +12,10 @@ const NOTES = [440.00, 493.88, 554.37, 587.33]; // A4, B4, C#5, D5 (Ascending Ma
 const PINCH_THRESHOLD = 0.04; // How close to register a pinch
 const RELEASE_THRESHOLD = 0.08; // How far to register a clean release
 
-export default function SequentialPinch({ onSessionComplete }: { onSessionComplete?: (xp: number) => void }) {
+import { useGamificationContext } from '@/context/GamificationContext';
+
+export default function SequentialPinch() {
+  const { addXP } = useGamificationContext();
   const { setActiveExercise } = useSession();
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -25,6 +28,14 @@ export default function SequentialPinch({ onSessionComplete }: { onSessionComple
   const [targetIndex, setTargetIndex] = useState(0);
   const [isReleased, setIsReleased] = useState(true); // Forces user to open hand between pinches
   const [repsCompleted, setRepsCompleted] = useState(0);
+  const prevRepsRef = useRef(0);
+
+  useEffect(() => {
+    if (repsCompleted > prevRepsRef.current) {
+      addXP(10);
+      prevRepsRef.current = repsCompleted;
+    }
+  }, [repsCompleted, addXP]);
 
   // Dedicated Audio Context for discrete notes (bypasses the continuous sweep engine)
   const synthCtx = useRef<AudioContext | null>(null);
@@ -54,7 +65,6 @@ export default function SequentialPinch({ onSessionComplete }: { onSessionComple
   };
 
   const handleExit = () => {
-    if (repsCompleted > 0 && onSessionComplete) onSessionComplete(repsCompleted * 10);
     setExerciseState('IDLE');
     setActiveExercise('MENU');
   };

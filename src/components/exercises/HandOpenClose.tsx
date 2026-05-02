@@ -6,21 +6,17 @@ import { CameraMirror } from '@/components/CameraMirror';
 import { StretchIndicator } from '@/components/exercises/StretchIndicator';
 import { useSession } from '@/context/SessionContext';
 
-import { ExerciseTargetBanner } from './ExerciseTargetBanner';
 import { ExerciseLayout, ExerciseState } from './ExerciseLayout';
 
-interface HandOpenCloseProps {
-  onSessionComplete?: (xp: number) => void;
-}
+import { useGamificationContext } from '@/context/GamificationContext';
 
-export default function HandOpenClose({ onSessionComplete }: HandOpenCloseProps) {
+export default function HandOpenClose() {
+  const { addXP } = useGamificationContext();
   const { setActiveExercise } = useSession();
   const [exerciseState, setExerciseState] = useState<ExerciseState>('IDLE');
   const [camError, setCamError] = useState<string | null>(null);
   const [isCamReady, setIsCamReady] = useState(false);
-  const [hasAwardedXP, setHasAwardedXP] = useState(false);
 
-  const [showTargetBanner, setShowTargetBanner] = useState(false);
   const prevTargetRef = useRef<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -45,17 +41,10 @@ export default function HandOpenClose({ onSessionComplete }: HandOpenCloseProps)
     }
 
     if (sessionTarget > prevTargetRef.current) {
-      setShowTargetBanner(true);
-
-      const timer = setTimeout(() => {
-        setShowTargetBanner(false);
-      }, 3000);
-
+      addXP(15);
       prevTargetRef.current = sessionTarget;
-
-      return () => clearTimeout(timer);
     }
-  }, [sessionTarget, exerciseState]);
+  }, [sessionTarget, exerciseState, addXP]);
 
   const handleInitHardware = async () => {
     setExerciseState('INITIALIZING');
@@ -66,22 +55,10 @@ export default function HandOpenClose({ onSessionComplete }: HandOpenCloseProps)
   const handleLockBaseline = () => {
     setBaseline(currentRatio);
     setExerciseState('RUNNING');
-    setHasAwardedXP(false);
     playAudio();
   };
 
-  const awardSessionXP = () => {
-    if (hasAwardedXP || !onSessionComplete) return;
-    const baseXP = 20;
-    const targetHitBonus = sessionTarget !== null && currentRatio >= sessionTarget ? 15 : 0;
-    onSessionComplete(baseXP + targetHitBonus);
-    setHasAwardedXP(true);
-  };
-
   const handleExit = () => {
-    if (exerciseState === 'RUNNING') {
-      awardSessionXP();
-    }
     stopAudio();
     setExerciseState('IDLE');
     setActiveExercise('MENU');
@@ -121,13 +98,12 @@ export default function HandOpenClose({ onSessionComplete }: HandOpenCloseProps)
             </div>
           ) : (
             <button
-              onClick={() => {
-                awardSessionXP();
-                pauseAudio();
-                stopAudio();
-                setExerciseState('IDLE');
-                setActiveExercise('MENU');
-              }}
+                onClick={() => {
+                  pauseAudio();
+                  stopAudio();
+                  setExerciseState('IDLE');
+                  setActiveExercise('MENU');
+                }}
               className="w-full rounded-md bg-white text-carbonBlack-800 px-6 py-3 font-semibold hover:bg-carbonBlack-50 transition-colors border border-carbonBlack-200 shadow-[0_1px_4px_rgba(0,0,0,0.06)] text-sm font-[var(--font-work-sans)]"
             >
               End Session
@@ -201,8 +177,6 @@ export default function HandOpenClose({ onSessionComplete }: HandOpenCloseProps)
           )}
         </>
       }
-    >
-      <ExerciseTargetBanner visible={showTargetBanner} newTarget={sessionTarget || 0} />
-    </ExerciseLayout>
+    />
   );
 }

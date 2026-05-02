@@ -219,13 +219,17 @@ const theme = createTheme({
     },
 });
 
+import { GamificationProvider } from "@/context/GamificationContext";
+
 export default function Providers({ children }: { children: React.ReactNode }) {
     return (
         <MantineProvider
             theme={theme}
             withGlobalClasses
         >
-            {children}
+            <GamificationProvider>
+                {children}
+            </GamificationProvider>
         </MantineProvider>
     );
 }

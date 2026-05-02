@@ -17,8 +17,8 @@ import {
   RingProgress,
 } from '@mantine/core';
 import HandOpenClose from '@/components/exercises/HandOpenClose';
-import { useGamification } from '@/hooks/useGamification';
-import { LevelBanner } from '@/components/gamification/LevelBanner';
+import { useGamificationContext } from '@/context/GamificationContext';
+import { GlobalCelebrationBanner } from '@/components/gamification/GlobalCelebrationBanner';
 import { StreakCounter } from '@/components/gamification/StreakCounter';
 import { ProgressGraph } from '@/components/gamification/ProgressGraph';
 import {
@@ -42,11 +42,12 @@ export default function Dashboard() {
     dailyStreak,
     isHydrated,
     hasLeveledUp,
+    recentXPEarned,
     addXP,
     getChartData,
     xpToNextLevel,
     progressInLevel,
-  } = useGamification();
+  } = useGamificationContext();
 
   const chartData = isHydrated ? getChartData() : [];
 
@@ -93,10 +94,21 @@ export default function Dashboard() {
       mih="100vh"
       style={{ fontFamily: 'var(--font-work-sans, sans-serif)' }}
     >
-      <LevelBanner
-        visible={hasLeveledUp}
-        currentLevel={currentLevel}
-        dailyStreak={dailyStreak}
+      <GlobalCelebrationBanner 
+        visible={hasLeveledUp} 
+        title="Level Up!" 
+        subtitle="New Level Reached:" 
+        valueText={currentLevel} 
+        icon="🌟" 
+        color="primary" 
+      />
+      <GlobalCelebrationBanner 
+        visible={recentXPEarned !== null} 
+        title="XP Earned!" 
+        subtitle="Great job! +" 
+        valueText={`${recentXPEarned} XP`} 
+        icon="🔥" 
+        color="warningAmber" 
       />
 
       {/* Top Header Bar */}
@@ -158,14 +170,27 @@ export default function Dashboard() {
                 withBorder
                 radius="md"
                 px="sm2"
-                py="xs2"
+                py="xs"
                 style={{ borderColor: 'var(--mantine-color-primary-2)', background: 'var(--mantine-color-primary-0)' }}
               >
-                <Group gap="xs" align="center">
-                  <IconStars size={16} color="var(--mantine-color-primary-7)" />
-                  <Text fw={700} size="sm" c="primary.8" style={{ fontFamily: 'var(--font-poppins, sans-serif)' }}>
-                    Level {currentLevel}
-                  </Text>
+                <Group gap="md" align="center">
+                  <Group gap="xs" align="center">
+                    <IconStars size={18} color="var(--mantine-color-primary-7)" />
+                    <Stack gap={0}>
+                      <Text fw={800} size="sm" c="primary.8" style={{ fontFamily: 'var(--font-poppins, sans-serif)', lineHeight: 1 }}>
+                        Level {currentLevel}
+                      </Text>
+                      <Text size="10px" fw={600} c="primary.6" tt="uppercase" lts="0.05em">
+                        {currentXP} / {currentXP + xpToNextLevel} XP
+                      </Text>
+                    </Stack>
+                  </Group>
+                  <RingProgress
+                    size={34}
+                    thickness={4}
+                    roundCaps
+                    sections={[{ value: Math.max(2, progressInLevel), color: 'var(--mantine-color-primary-5)' }]}
+                  />
                 </Group>
               </Paper>
             </Group>
@@ -560,15 +585,15 @@ export default function Dashboard() {
         )}
 
         {activeExercise === 'HAND_OPEN_CLOSE' && (
-          <HandOpenClose onSessionComplete={addXP} />
+          <HandOpenClose />
         )}
 
         {activeExercise === 'PINCER_GRIP' && (
-          <ArpeggioPath onSessionComplete={addXP} />
+          <ArpeggioPath />
         )}
 
         {activeExercise === 'SEQUENTIAL_PINCH' && (
-          <SequentialPinch onSessionComplete={addXP} />
+          <SequentialPinch />
         )}
       </Container>
 

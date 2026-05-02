@@ -4,12 +4,23 @@ import { Transition, Box, Text, Group, ThemeIcon } from '@mantine/core';
 import Lottie from 'lottie-react';
 import celebrationAnimation from '../../../public/animations/celebration.json';
 
-type ExerciseTargetBannerProps = {
+export type CelebrationBannerProps = {
   visible: boolean;
-  newTarget: number;
+  title: string;
+  subtitle: string;
+  valueText: React.ReactNode;
+  icon?: React.ReactNode;
+  color?: string;
 };
 
-export function ExerciseTargetBanner({ visible, newTarget }: ExerciseTargetBannerProps) {
+export function GlobalCelebrationBanner({ 
+  visible, 
+  title, 
+  subtitle, 
+  valueText, 
+  icon = '🔥',
+  color = 'tealBrand'
+}: CelebrationBannerProps) {
   return (
     <Box 
       pos="fixed" 
@@ -32,20 +43,22 @@ export function ExerciseTargetBanner({ visible, newTarget }: ExerciseTargetBanne
         {(styles) => (
           <Box style={{ ...styles, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
             {/* Lottie Animation Layer */}
-            <Box
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: 400,
-                height: 400,
-                zIndex: 0,
-                pointerEvents: 'none'
-              }}
-            >
-              <Lottie animationData={celebrationAnimation} loop={false} />
-            </Box>
+            {visible && (
+              <Box
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: 400,
+                  height: 400,
+                  zIndex: 0,
+                  pointerEvents: 'none'
+                }}
+              >
+                <Lottie animationData={celebrationAnimation} loop={false} />
+              </Box>
+            )}
 
             {/* Banner UI Layer */}
             <Box
@@ -53,23 +66,23 @@ export function ExerciseTargetBanner({ visible, newTarget }: ExerciseTargetBanne
               px="xl"
               py="sm"
               style={{
-                border: '2px solid var(--mantine-color-tealBrand-5)',
+                border: `2px solid var(--mantine-color-${color}-5)`,
                 borderRadius: 'var(--mantine-radius-md)',
-                boxShadow: '0 8px 30px rgba(15, 76, 92, 0.15)', // Soft tealBrand glow
-                zIndex: 1, // ensure it's above the lottie
-                position: 'relative' // relative context for z-index
+                boxShadow: '0 8px 30px rgba(15, 76, 92, 0.15)',
+                zIndex: 1, 
+                position: 'relative' 
               }}
             >
               <Group gap="md">
-                <ThemeIcon color="tealBrand.1" c="tealBrand.8" size="lg" radius="md">
-                  🔥
+                <ThemeIcon color={`${color}.1`} c={`${color}.8`} size="lg" radius="md">
+                  {icon}
                 </ThemeIcon>
                 <Box>
-                  <Text size="xs" tt="uppercase" lts="0.1em" c="tealBrand.7" fw={800}>
-                    Target Smashed!
+                  <Text size="xs" tt="uppercase" lts="0.1em" c={`${color}.7`} fw={800}>
+                    {title}
                   </Text>
                   <Text ff="monospace" size="sm" c="carbonBlack.7" mt={2}>
-                    Pushing new goal to: <Text component="span" fw={700} c="tealBrand.6">{newTarget.toFixed(2)}</Text>
+                    {subtitle} <Text component="span" fw={700} c={`${color}.6`}>{valueText}</Text>
                   </Text>
                 </Box>
               </Group>

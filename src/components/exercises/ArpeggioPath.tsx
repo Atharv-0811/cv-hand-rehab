@@ -20,7 +20,10 @@ const NODES = [
   { x: 0.8, y: 0.6, note: 493.88, label: 'B' },
 ];
 
-export default function ArpeggioPath({ onSessionComplete }: { onSessionComplete?: (xp: number) => void }) {
+import { useGamificationContext } from '@/context/GamificationContext';
+
+export default function ArpeggioPath() {
+  const { addXP } = useGamificationContext();
   const { setActiveExercise } = useSession();
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -28,7 +31,6 @@ export default function ArpeggioPath({ onSessionComplete }: { onSessionComplete?
   const [camError, setCamError] = useState<string | null>(null);
   const [isCamReady, setIsCamReady] = useState(false);
   const [isTracked, setIsTracked] = useState(false);
-  const [hasAwardedXP, setHasAwardedXP] = useState(false);
 
   // Game state
   const [cursorPos, setCursorPos] = useState<{ x: number, y: number } | null>(null);
@@ -54,6 +56,15 @@ export default function ArpeggioPath({ onSessionComplete }: { onSessionComplete?
 
   const [score, _setScore] = useState(0);
   const scoreRef = useRef(0);
+  const prevScoreRef = useRef(0);
+
+  useEffect(() => {
+    if (score > prevScoreRef.current) {
+      addXP(10);
+      prevScoreRef.current = score;
+    }
+  }, [score, addXP]);
+
   const setScore = (val: number | ((prev: number) => number)) => {
     if (typeof val === 'function') {
       _setScore((prev) => {
@@ -151,10 +162,6 @@ export default function ArpeggioPath({ onSessionComplete }: { onSessionComplete?
   };
 
   const handleExit = () => {
-    if (exerciseState === 'RUNNING' && onSessionComplete && !hasAwardedXP && scoreRef.current > 0) {
-      onSessionComplete(scoreRef.current * 10);
-      setHasAwardedXP(true);
-    }
     setExerciseState('IDLE');
     setActiveExercise('MENU');
   };

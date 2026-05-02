@@ -43,7 +43,7 @@
 'use client';
 
 import { Box, Text, Group, SimpleGrid, Flex } from '@mantine/core';
-import type { ChartPoint } from '@/hooks/useGamification';
+import type { ChartPoint } from '@/context/GamificationContext';
 
 type ProgressGraphProps = {
   data: ChartPoint[];
