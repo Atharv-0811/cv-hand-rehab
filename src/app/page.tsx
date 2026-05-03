@@ -1,4 +1,6 @@
 'use client';
+import { useEffect, useRef, useState } from 'react';
+import { createClient } from '@/utils/supabase/client';
 
 import { useSession } from '@/context/SessionContext';
 import {
@@ -15,12 +17,16 @@ import {
   ThemeIcon,
   Divider,
   RingProgress,
+  Modal,
+  TextInput,
+  Button,
 } from '@mantine/core';
 import HandOpenClose from '@/components/exercises/HandOpenClose';
 import { useGamificationContext } from '@/context/GamificationContext';
 import { GlobalCelebrationBanner } from '@/components/gamification/GlobalCelebrationBanner';
 import { StreakCounter } from '@/components/gamification/StreakCounter';
 import { ProgressGraph } from '@/components/gamification/ProgressGraph';
+import { AnalyticsDashboard } from '@/components/gamification/AnalyticsDashboard';
 import {
   IconHandStop,
   IconRotate,
@@ -47,7 +53,63 @@ export default function Dashboard() {
     getChartData,
     xpToNextLevel,
     progressInLevel,
+    syncSessionToDatabase,
   } = useGamificationContext();
+
+  const prevExerciseRef = useRef(activeExercise);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [isNameModalOpen, setIsNameModalOpen] = useState(false);
+  const [newNameInput, setNewNameInput] = useState('');
+  const [isSubmittingName, setIsSubmittingName] = useState(false);
+
+  useEffect(() => {
+    async function loadProfile() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('id', user.id)
+          .single();
+          
+        if (profile) {
+          if (!profile.display_name) {
+            setIsNameModalOpen(true);
+          } else {
+            setDisplayName(profile.display_name);
+          }
+        }
+      }
+    }
+    loadProfile();
+  }, []);
+
+  const handleSaveName = async () => {
+    if (!newNameInput.trim()) return;
+    setIsSubmittingName(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ display_name: newNameInput.trim() })
+        .eq('id', user.id);
+        
+      if (!error) {
+        setDisplayName(newNameInput.trim());
+        setIsNameModalOpen(false);
+      }
+    }
+    setIsSubmittingName(false);
+  };
+
+  useEffect(() => {
+    if (activeExercise === 'MENU' && prevExerciseRef.current !== 'MENU') {
+      syncSessionToDatabase(prevExerciseRef.current);
+    }
+    prevExerciseRef.current = activeExercise;
+  }, [activeExercise, syncSessionToDatabase]);
 
   const chartData = isHydrated ? getChartData() : [];
 
@@ -94,6 +156,39 @@ export default function Dashboard() {
       mih="100vh"
       style={{ fontFamily: 'var(--font-work-sans, sans-serif)' }}
     >
+      <Modal
+        opened={isNameModalOpen}
+        onClose={() => {}}
+        withCloseButton={false}
+        title={<Title order={3} style={{ fontFamily: 'var(--font-poppins, sans-serif)' }}>Welcome to Physio-CV!</Title>}
+        centered
+        overlayProps={{
+          backgroundOpacity: 0.55,
+          blur: 3,
+        }}
+      >
+        <Stack gap="md">
+          <Text size="sm" c="carbonBlack.6">
+            What should we call you? Please enter your display name to continue.
+          </Text>
+          <TextInput
+            placeholder="Your name"
+            value={newNameInput}
+            onChange={(e) => setNewNameInput(e.currentTarget.value)}
+            data-autofocus
+            autoFocus
+          />
+          <Button
+            fullWidth
+            onClick={handleSaveName}
+            loading={isSubmittingName}
+            disabled={!newNameInput.trim()}
+          >
+            Save Name
+          </Button>
+        </Stack>
+      </Modal>
+
       <GlobalCelebrationBanner 
         visible={hasLeveledUp} 
         title="Level Up!" 
@@ -147,7 +242,7 @@ export default function Dashboard() {
                   lineHeight: 1.2,
                 }}
               >
-                Auditory Feedback Training
+                {displayName ? `Welcome back, ${displayName}!` : 'Auditory Feedback Training'}
               </Title>
             </Stack>
 
@@ -579,6 +674,8 @@ export default function Dashboard() {
                 </Box>
                 <ProgressGraph data={chartData} />
               </Paper>
+
+              <AnalyticsDashboard />
             </Stack>
 
           </Stack>

@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useCallback, useEffect, useMemo, useState, ReactNode } from 'react';
+import { createContext, useContext, useCallback, useEffect, useMemo, useState, useRef, ReactNode } from 'react';
+import { createClient } from '@/utils/supabase/client';
 
 const STORAGE_KEY = 'physio_gamification_v1';
 const XP_LEVEL_DIVISOR = 100;
@@ -27,7 +28,7 @@ export type ChartPoint = {
 };
 
 const defaultState: GamificationState = {
-  currentLevel: 0,
+  currentLevel: 1,
   currentXP: 0,
   dailyStreak: 0,
   lastActiveDate: null,
@@ -53,10 +54,10 @@ const calcTotalXP = (history: HistoryEntry[]) =>
   history.reduce((sum, entry) => sum + entry.xpEarned, 0);
 
 const calcLevelFromTotalXP = (totalXP: number) =>
-  Math.floor(Math.sqrt(Math.max(totalXP, 0) / XP_LEVEL_DIVISOR));
+  Math.floor(Math.sqrt(Math.max(totalXP, 0) / XP_LEVEL_DIVISOR)) + 1;
 
 const calcXPWithinLevel = (totalXP: number, level: number) => {
-  const levelFloor = Math.pow(level, 2) * XP_LEVEL_DIVISOR;
+  const levelFloor = Math.pow(level - 1, 2) * XP_LEVEL_DIVISOR;
   return Math.max(0, totalXP - levelFloor);
 };
 
@@ -70,6 +71,8 @@ interface GamificationContextType extends GamificationState {
   addXP: (amount: number) => void;
   checkAndUpdateStreak: () => void;
   getChartData: () => ChartPoint[];
+  syncSessionToDatabase: (exerciseType: string) => Promise<void>;
+  lastSyncTime: number;
 }
 
 const GamificationContext = createContext<GamificationContextType | undefined>(undefined);
@@ -79,6 +82,9 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
   const [hasLeveledUp, setHasLeveledUp] = useState(false);
   const [recentXPEarned, setRecentXPEarned] = useState<number | null>(null);
+  const [lastSyncTime, setLastSyncTime] = useState<number>(0);
+
+  const pendingSessionXPRef = useRef<number>(0);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -117,6 +123,8 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
   const addXP = useCallback((amount: number) => {
     if (amount <= 0) return;
     const today = getTodayISODate();
+
+    pendingSessionXPRef.current += amount;
 
     setState((prev) => {
       const nextHistory = [...prev.history];
@@ -186,9 +194,41 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
     checkAndUpdateStreak();
   }, [checkAndUpdateStreak, isHydrated]);
 
+  const syncSessionToDatabase = useCallback(async (exerciseType: string) => {
+    const xpEarned = pendingSessionXPRef.current;
+    if (xpEarned <= 0) return;
+
+    pendingSessionXPRef.current = 0; // reset early to avoid double sync
+
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from('exercise_logs').insert({
+        user_id: user.id,
+        exercise_type: exerciseType,
+        xp_earned: xpEarned
+      });
+
+      // Update profile with the current state values
+      // We upsert by user_id. We include updated_at so it stays fresh.
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        total_xp: calcTotalXP(state.history) + xpEarned,
+        current_level: calcLevelFromTotalXP(calcTotalXP(state.history) + xpEarned),
+        updated_at: new Date().toISOString()
+      });
+
+      setLastSyncTime(Date.now());
+    } catch (e) {
+      console.error('Failed to sync session to database', e);
+    }
+  }, [state.history]);
+
   const totalXP = useMemo(() => calcTotalXP(state.history), [state.history]);
-  const nextLevelXP = useMemo(() => Math.pow(state.currentLevel + 1, 2) * XP_LEVEL_DIVISOR, [state.currentLevel]);
-  const currentLevelFloorXP = useMemo(() => Math.pow(state.currentLevel, 2) * XP_LEVEL_DIVISOR, [state.currentLevel]);
+  const nextLevelXP = useMemo(() => Math.pow(state.currentLevel, 2) * XP_LEVEL_DIVISOR, [state.currentLevel]);
+  const currentLevelFloorXP = useMemo(() => Math.pow(state.currentLevel - 1, 2) * XP_LEVEL_DIVISOR, [state.currentLevel]);
   const xpToNextLevel = Math.max(0, nextLevelXP - totalXP);
   const progressInLevel = nextLevelXP === currentLevelFloorXP
     ? 0
@@ -207,6 +247,8 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
         addXP,
         checkAndUpdateStreak,
         getChartData,
+        syncSessionToDatabase,
+        lastSyncTime,
       }}
     >
       {children}
