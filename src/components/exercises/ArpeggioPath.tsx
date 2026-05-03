@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Box, Text } from '@mantine/core';
+import { Box, Text, Group, Stack, ThemeIcon } from '@mantine/core';
 import { useSession } from '@/context/SessionContext';
 import { ExerciseLayout, ExerciseState } from './ExerciseLayout';
 import { CameraMirror } from '@/components/CameraMirror';
+import { IconBulb } from '@tabler/icons-react';
 
 const THUMB_TIP = 4;
 const FINGER_TIPS = [8, 12, 16, 20]; // Index, Middle, Ring, Pinky
@@ -408,6 +409,50 @@ export default function ArpeggioPath() {
         <div className="flex flex-col gap-4">
           <div className="relative w-full rounded-md overflow-hidden bg-carbonBlack-50 border border-carbonBlack-200">
             <CameraMirror videoRef={videoRef} onReady={() => setIsCamReady(true)} onError={(err) => setCamError(err)} />
+
+            {exerciseState === 'CALIBRATION' && (
+              <div className="absolute inset-0 bg-carbonBlack-900/40 backdrop-blur-sm z-30 flex items-center justify-center p-6">
+                <Box p="lg" w="100%" style={{ 
+                  maxWidth: 380,
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  borderRadius: 'var(--mantine-radius-md)', 
+                  border: '1px solid var(--mantine-color-carbonBlack-2)', 
+                  boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+                }}>
+                  <Group align="center" mb="md" gap="sm">
+                    <ThemeIcon size="lg" color="warningAmber.5" variant="light" radius="xl">
+                      <IconBulb size={20} />
+                    </ThemeIcon>
+                    <Text fw={700} size="md" c="carbonBlack.9">
+                      Before You Start
+                    </Text>
+                  </Group>
+
+                  <Stack gap="sm">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-50 flex items-center justify-center text-primary-700 font-bold text-xs mt-0.5">1</div>
+                      <Text size="sm" c="carbonBlack.7" lh={1.4}>
+                        <span className="font-semibold text-carbonBlack-900">Lighting is key.</span> Ensure you are in a well-lit environment so the camera can accurately track your hand.
+                      </Text>
+                    </div>
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-50 flex items-center justify-center text-primary-700 font-bold text-xs mt-0.5">2</div>
+                      <Text size="sm" c="carbonBlack.7" lh={1.4}>
+                        <span className="font-semibold text-carbonBlack-900">Pinch & Hold.</span> Firmly pinch your thumb and the designated target finger together to begin.
+                      </Text>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-50 flex items-center justify-center text-primary-700 font-bold text-xs mt-0.5">3</div>
+                      <Text size="sm" c="carbonBlack.7" lh={1.4}>
+                        <span className="font-semibold text-carbonBlack-900">Trace the Path.</span> Drag your pinched fingers through the air to collect all musical nodes without dropping the pinch.
+                      </Text>
+                    </div>
+                  </Stack>
+                </Box>
+              </div>
+            )}
 
             {exerciseState === 'RUNNING' && (
               <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
