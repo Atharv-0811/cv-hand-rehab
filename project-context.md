@@ -105,3 +105,50 @@ A pure visual component that safely requests `getUserMedia`, applies a CSS `scal
 *   **Wrist Rotation:** The `/page.tsx` dashboard lists "Wrist Rotation" as an upcoming exercise. This module needs to be created.
 *   **Audio Hook Refactoring:** While `HandOpenClose` uses the global `useAudioEngine.ts` hook, the newer `SequentialPinch` and `ArpeggioPath` modules instantiate their own localized `AudioContext` for discrete tones. These should ideally be unified or abstracted.
 *   **Error Boundaries:** If webcam access is completely blocked at the OS level, the error state in `CameraMirror` could be polished with a more descriptive Mantine modal.
+
+---
+
+## 7. Recent Collaborator Updates (May 2026)
+
+### Supabase Infrastructure & Authentication
+*   **Dependencies:** `@supabase/ssr` and `@supabase/supabase-js` were added to the project.
+*   **Database Utilities:** Added dedicated client, server, and middleware utilities (`src/utils/supabase/client.ts`, `src/utils/supabase/server.ts`, `src/utils/supabase/middleware.ts`) for robust database and authentication routing.
+*   **Authentication Flow:** Implemented route protection using Next.js middleware (`src/middleware.ts`) and created a dedicated login page (`src/app/login/page.tsx`) driven by server actions (`src/app/login/actions.ts`).
+
+### Analytics Dashboard
+*   **Visual Tracking:** Created an `AnalyticsDashboard.tsx` component to provide user data visualizations.
+*   **Data Hook:** Added a custom `useUserAnalytics.ts` hook for querying user progress metrics from the database.
+
+### Gamification & XP Refactoring
+*   **Global Level System:** Replaced the generic `SessionContext` with a dedicated `GamificationContext.tsx`. Level XP is now tracked globally.
+*   **Unified Banners:** Refactored `LevelBanner.tsx` into `GlobalCelebrationBanner.tsx` to handle cross-exercise level-ups and milestones.
+*   **Exercise Updates:** Modified `ArpeggioPath.tsx`, `HandOpenClose.tsx`, and `SequentialPinch.tsx` to natively pipe XP completions into the new `GamificationContext`.
+
+---
+
+## 8. Confirmed Feature List
+*(Note: Only verified and confirmed features are added to this list)*
+
+**Core AR Tracking:**
+- [x] Client-side MediaPipe Hands (15 FPS Frame Governor)
+- [x] Web Audio API DSP synthesis (Continuous & Discrete oscillators)
+- [x] Scale-invariant tracking logic (2D Ratios against Palm Length)
+
+**Exercises:**
+- [x] Hand Extension (Progressive Overload baseline tracking)
+- [x] Sequential Pinch (Anti-cheat strict open-hand phase)
+- [x] AR Arpeggio Path (4x4 Matrix, Velocity limits, Path tolerance)
+
+**Gamification & Progress:**
+- [x] Global Level System & XP Unified Context
+- [x] Global Celebration Banners
+- [x] Daily Streak Counter
+- [x] Weekly Performance Graph & Analytics Dashboard
+
+**Infrastructure & Core UI:**
+- [x] Supabase Core Utilities (Client/Server/Middleware)
+- [x] Email & Password Authentication (Login/Signup via Server Actions)
+- [x] Google OAuth Provider Integration
+- [x] Extracted Modular `Navbar` Component
+- [x] Top-Nav Settings Dropdown with Server Action Sign-Out
+- [x] Robust Camera Hardware Lifecycle Cleanup (MediaStream explicitly halted on unmount)
