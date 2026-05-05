@@ -1,5 +1,6 @@
-import { login, signup } from './actions'
-import { Box, Button, Container, Paper, PasswordInput, TextInput, Title, Text, Stack } from '@mantine/core'
+import { login, signup, loginWithGoogle } from './actions'
+import { Box, Button, Container, Paper, PasswordInput, TextInput, Title, Text, Stack, Divider } from '@mantine/core'
+import { IconBrandGoogle } from '@tabler/icons-react'
 
 export default async function LoginPage(props: {
   searchParams: Promise<{ error?: string }>
@@ -22,7 +23,6 @@ export default async function LoginPage(props: {
               label="Full Name (for new accounts)"
               name="full_name"
               placeholder="John Doe"
-              mt="sm"
             />
             <TextInput
               label="Email"
@@ -30,21 +30,19 @@ export default async function LoginPage(props: {
               type="email"
               placeholder="you@mantine.dev"
               required
-              mt="sm"
             />
             <PasswordInput
               label="Password"
               name="password"
               placeholder="Your password"
               required
-              mt="md"
             />
             {searchParams?.error && (
               <Text c="red" size="sm" ta="center" mt="sm">
                 {searchParams.error}
               </Text>
             )}
-            <Box mt="xl" style={{ display: 'flex', gap: '1rem' }}>
+            <Box mt="xs2" style={{ display: 'flex', gap: '1rem' }}>
               <Button fullWidth variant="default" type="submit" formAction={signup}>
                 Sign up
               </Button>
@@ -53,6 +51,14 @@ export default async function LoginPage(props: {
               </Button>
             </Box>
           </Stack>
+        </form>
+
+        <Divider label="Or continue with" labelPosition="center" my="md" />
+
+        <form>
+          <Button fullWidth variant="default" type="submit" formAction={loginWithGoogle} leftSection={<IconBrandGoogle size={18} />}>
+            Sign in with Google
+          </Button>
         </form>
       </Paper>
     </Container>

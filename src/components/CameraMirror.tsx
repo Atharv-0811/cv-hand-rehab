@@ -12,6 +12,7 @@ interface CameraMirrorProps {
 export const CameraMirror = ({ videoRef, onReady, onError }: CameraMirrorProps) => {
   const [camStatus, setCamStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const isInitialized = useRef(false); // Prevents rapid re-triggering
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     async function setupCamera() {
@@ -25,6 +26,7 @@ export const CameraMirror = ({ videoRef, onReady, onError }: CameraMirrorProps) 
           video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } },
           audio: false,
         });
+        streamRef.current = stream;
         
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -41,6 +43,16 @@ export const CameraMirror = ({ videoRef, onReady, onError }: CameraMirrorProps) 
       }
     }
     setupCamera();
+
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    };
   }, []); // <-- EMPTY ARRAY STOPS THE SEIZURE FLICKER
 
   return (
