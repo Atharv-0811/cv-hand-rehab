@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createClient } from '@/utils/supabase/server'
 
 export async function login(formData: FormData) {
@@ -55,9 +56,24 @@ export async function logout() {
 
 export async function loginWithGoogle() {
   const supabase = await createClient()
+  const headersList = await headers()
+  const origin = headersList.get('origin')
 
-  // Get the base URL from environment or default to localhost
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  // Get the base URL from the incoming request origin, fall back to environment variables
+  let baseUrl = 
+    origin ??
+    process.env.NEXT_PUBLIC_SITE_URL ?? 
+    process.env.NEXT_PUBLIC_VERCEL_URL ?? 
+    process.env.VERCEL_URL ?? 
+    'http://localhost:3000'
+    
+  // Vercel system environment variables do not include the protocol
+  if (baseUrl && !baseUrl.startsWith('http')) {
+    baseUrl = `https://${baseUrl}`
+  }
+  
+  // Remove trailing slash if present
+  baseUrl = baseUrl.replace(/\/$/, '')
   
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',

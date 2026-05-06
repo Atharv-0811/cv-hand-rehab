@@ -1,6 +1,6 @@
-import { login, signup, loginWithGoogle } from './actions'
+import { login, signup } from './actions'
 import { Box, Button, Container, Paper, PasswordInput, TextInput, Title, Text, Stack, Divider } from '@mantine/core'
-import { IconBrandGoogle } from '@tabler/icons-react'
+import { GoogleLoginButton } from '@/components/GoogleLoginButton'
 
 export default async function LoginPage(props: {
   searchParams: Promise<{ error?: string }>
@@ -55,11 +55,7 @@ export default async function LoginPage(props: {
 
         <Divider label="Or continue with" labelPosition="center" my="md" />
 
-        <form>
-          <Button fullWidth variant="default" type="submit" formAction={loginWithGoogle} leftSection={<IconBrandGoogle size={18} />}>
-            Sign in with Google
-          </Button>
-        </form>
+        <GoogleLoginButton />
       </Paper>
     </Container>
   )

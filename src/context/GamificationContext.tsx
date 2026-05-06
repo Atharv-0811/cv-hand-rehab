@@ -86,28 +86,53 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
 
   const pendingSessionXPRef = useRef<number>(0);
 
+  const userIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<GamificationState>;
-        setState((prev) => ({
-          ...prev,
-          ...parsed,
-          history: Array.isArray(parsed.history) ? parsed.history : prev.history,
-        }));
+    const supabase = createClient();
+
+    const loadState = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      userIdRef.current = user?.id || null;
+      const key = user ? `${STORAGE_KEY}_${user.id}` : STORAGE_KEY;
+
+      try {
+        const raw = window.localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Partial<GamificationState>;
+          setState((prev) => ({
+            ...prev,
+            ...parsed,
+            history: Array.isArray(parsed.history) ? parsed.history : prev.history,
+          }));
+        } else {
+          setState(defaultState);
+        }
+      } catch {
+        setState(defaultState);
+      } finally {
+        setIsHydrated(true);
       }
-    } catch {
-      setState(defaultState);
-    } finally {
-      setIsHydrated(true);
-    }
+    };
+
+    loadState();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        loadState();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
     if (!isHydrated || typeof window === 'undefined') return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const key = userIdRef.current ? `${STORAGE_KEY}_${userIdRef.current}` : STORAGE_KEY;
+    window.localStorage.setItem(key, JSON.stringify(state));
   }, [state, isHydrated]);
 
   const checkAndUpdateStreak = useCallback(() => {
