@@ -13,8 +13,10 @@ import {
   Skeleton,
   Table,
   Badge,
+  Box,
 } from '@mantine/core';
 import { LineChart } from '@mantine/charts';
+import { Navbar } from '@/components/Navbar';
 import '@mantine/charts/styles.css';
 import { createClient } from '@/utils/supabase/client';
 
@@ -86,8 +88,9 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <Container size="md" py="xl">
-        <Stack gap="xl">
+      <Box bg="#FFFDF5" style={{ minHeight: '100vh' }}>
+        <Container size="md" py="xl">
+          <Stack gap="xl">
           <Skeleton height={120} radius="md" style={{ '--skeleton-color': 'var(--mantine-color-carbonBlack-2)' } as any} />
           <SimpleGrid cols={{ base: 1, sm: 3 }}>
             <Skeleton height={100} radius="md" style={{ '--skeleton-color': 'var(--mantine-color-carbonBlack-2)' } as any} />
@@ -95,17 +98,20 @@ export default function ProfilePage() {
             <Skeleton height={100} radius="md" style={{ '--skeleton-color': 'var(--mantine-color-carbonBlack-2)' } as any} />
           </SimpleGrid>
           <Skeleton height={300} radius="md" style={{ '--skeleton-color': 'var(--mantine-color-carbonBlack-2)' } as any} />
-          <Skeleton height={200} radius="md" style={{ '--skeleton-color': 'var(--mantine-color-carbonBlack-2)' } as any} />
-        </Stack>
-      </Container>
+            <Skeleton height={200} radius="md" style={{ '--skeleton-color': 'var(--mantine-color-carbonBlack-2)' } as any} />
+          </Stack>
+        </Container>
+      </Box>
     );
   }
 
   return (
-    <Container size="md" py="xl" bg="white">
-      <Stack gap="xl">
-        
-        {/* User Header */}
+    <Box bg="#FFFDF5" style={{ minHeight: '100vh' }}>
+      <Navbar displayName={profile?.display_name || null} />
+      <Container size="md" py="xl">
+        <Stack gap="xl">
+          
+          {/* User Header */}
         <Paper withBorder radius="md" p="md" style={{ borderColor: 'var(--mantine-color-carbonBlack-1)' }}>
           <Group gap="md">
             <Avatar src={profile?.avatar_url} size="xl" radius="md" color="primary" />
@@ -228,7 +234,8 @@ export default function ProfilePage() {
           </Paper>
         </Stack>
 
-      </Stack>
-    </Container>
+        </Stack>
+      </Container>
+    </Box>
   );
 }
