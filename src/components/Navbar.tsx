@@ -17,7 +17,9 @@ import {
   IconStars,
   IconChevronDown,
   IconLogout,
+  IconUser,
 } from '@tabler/icons-react';
+import Link from 'next/link';
 import { useGamificationContext } from '@/context/GamificationContext';
 import { logout } from '@/app/login/actions';
 
@@ -127,6 +129,9 @@ export function Navbar({ displayName }: NavbarProps) {
 
               <Menu.Dropdown>
                 <Menu.Label>Settings</Menu.Label>
+                <Menu.Item component={Link} href="/profile" leftSection={<IconUser size={16} />}>
+                  Profile
+                </Menu.Item>
                 <form action={logout}>
                   <Menu.Item type="submit" leftSection={<IconLogout size={16} />}>
                     Sign out

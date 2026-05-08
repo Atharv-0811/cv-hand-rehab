@@ -98,18 +98,67 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
       const key = user ? `${STORAGE_KEY}_${user.id}` : STORAGE_KEY;
 
       try {
+        let nextState = { ...defaultState };
         const raw = window.localStorage.getItem(key);
+        
         if (raw) {
           const parsed = JSON.parse(raw) as Partial<GamificationState>;
-          setState((prev) => ({
-            ...prev,
+          nextState = {
+            ...nextState,
             ...parsed,
-            history: Array.isArray(parsed.history) ? parsed.history : prev.history,
-          }));
-        } else {
-          setState(defaultState);
+            history: Array.isArray(parsed.history) ? parsed.history : [],
+          };
         }
-      } catch {
+
+        if (user) {
+          // Fetch from Supabase as source of truth for XP and history
+          const { data: logs, error } = await supabase
+            .from('exercise_logs')
+            .select('xp_earned, created_at')
+            .eq('user_id', user.id);
+
+          if (!error && logs && logs.length > 0) {
+            const historyMap = new Map<string, number>();
+            logs.forEach(log => {
+              const dateISO = log.created_at.split('T')[0];
+              historyMap.set(dateISO, (historyMap.get(dateISO) || 0) + log.xp_earned);
+            });
+            
+            const history: HistoryEntry[] = Array.from(historyMap.entries())
+              .map(([date, xpEarned]) => ({ date, xpEarned }))
+              .sort((a, b) => a.date.localeCompare(b.date))
+              .slice(-90);
+
+            const totalXP = calcTotalXP(history);
+            const level = calcLevelFromTotalXP(totalXP);
+            const currentXP = calcXPWithinLevel(totalXP, level);
+
+            let streak = 0;
+            if (history.length > 0) {
+              streak = 1;
+              for (let i = history.length - 1; i > 0; i--) {
+                const diff = daysBetween(history[i - 1].date, history[i].date);
+                if (diff === 1) streak++;
+                else break;
+              }
+            }
+
+            const lastLogDate = history.length > 0 ? history[history.length - 1].date : null;
+            
+            nextState = {
+              ...nextState,
+              history,
+              currentLevel: level,
+              currentXP: currentXP,
+              lastActiveDate: lastLogDate || nextState.lastActiveDate,
+              dailyStreak: streak > 0 ? streak : nextState.dailyStreak,
+            };
+          }
+        }
+        
+        setState(nextState);
+      } catch (err) {
+        console.error('Error loading gamification state', err);
         setState(defaultState);
       } finally {
         setIsHydrated(true);

@@ -20,6 +20,7 @@ import {
   Modal,
   TextInput,
   Button,
+  Flex,
 } from '@mantine/core';
 import { Navbar } from '@/components/Navbar';
 import HandOpenClose from '@/components/exercises/HandOpenClose';
@@ -38,6 +39,7 @@ import {
 } from '@tabler/icons-react';
 import SequentialPinch from '@/components/exercises/SequentialPinch';
 import ArpeggioPath from '@/components/exercises/ArpeggioPath';
+import { ClinicalExportButton } from '@/components/ClinicalExportButton';
 
 export default function Dashboard() {
   const { activeExercise, setActiveExercise, globalScore } = useSession();
@@ -71,7 +73,7 @@ export default function Dashboard() {
           .select('display_name')
           .eq('id', user.id)
           .single();
-          
+
         if (profile) {
           if (!profile.display_name) {
             setIsNameModalOpen(true);
@@ -94,7 +96,7 @@ export default function Dashboard() {
         .from('profiles')
         .update({ display_name: newNameInput.trim() })
         .eq('id', user.id);
-        
+
       if (!error) {
         setDisplayName(newNameInput.trim());
         setIsNameModalOpen(false);
@@ -157,7 +159,7 @@ export default function Dashboard() {
     >
       <Modal
         opened={isNameModalOpen}
-        onClose={() => {}}
+        onClose={() => { }}
         withCloseButton={false}
         title={<Title order={3} style={{ fontFamily: 'var(--font-poppins, sans-serif)' }}>Welcome to Physio-CV!</Title>}
         centered
@@ -188,21 +190,21 @@ export default function Dashboard() {
         </Stack>
       </Modal>
 
-      <GlobalCelebrationBanner 
-        visible={hasLeveledUp} 
-        title="Level Up!" 
-        subtitle="New Level Reached:" 
-        valueText={currentLevel} 
-        icon="🌟" 
-        color="primary" 
+      <GlobalCelebrationBanner
+        visible={hasLeveledUp}
+        title="Level Up!"
+        subtitle="New Level Reached:"
+        valueText={currentLevel}
+        icon="🌟"
+        color="primary"
       />
-      <GlobalCelebrationBanner 
-        visible={recentXPEarned !== null} 
-        title="XP Earned!" 
-        subtitle="Great job! +" 
-        valueText={`${recentXPEarned} XP`} 
-        icon="🔥" 
-        color="warningAmber" 
+      <GlobalCelebrationBanner
+        visible={recentXPEarned !== null}
+        title="XP Earned!"
+        subtitle="Great job! +"
+        valueText={`${recentXPEarned} XP`}
+        icon="🔥"
+        color="warningAmber"
       />
 
       {/* Top Header Bar */}
@@ -539,30 +541,34 @@ export default function Dashboard() {
 
             {/* Section: Activity History */}
             <Stack gap="sm2">
-              <Stack gap={2}>
-                <Text
-                  size="xs"
-                  tt="uppercase"
-                  lts="0.1em"
-                  c="carbonBlack.5"
-                  fw={600}
-                  style={{ fontSize: '12px' }}
-                >
-                  History
-                </Text>
-                <Title
-                  order={2}
-                  fw={700}
-                  c="carbonBlack.9"
-                  lts="-0.02em"
-                  style={{
-                    fontFamily: 'var(--font-poppins, sans-serif)',
-                    fontSize: 'clamp(18px, 2.5vw, 22px)',
-                  }}
-                >
-                  Activity Over Time
-                </Title>
-              </Stack>
+              <Flex justify="space-between" align="flex-end">
+                <Stack gap={2}>
+                  <Text
+                    size="xs"
+                    tt="uppercase"
+                    lts="0.1em"
+                    c="carbonBlack.5"
+                    fw={600}
+                    style={{ fontSize: '12px' }}
+                  >
+                    History
+                  </Text>
+                  <Title
+                    order={2}
+                    fw={700}
+                    c="carbonBlack.9"
+                    lts="-0.02em"
+                    style={{
+                      fontFamily: 'var(--font-poppins, sans-serif)',
+                      fontSize: 'clamp(18px, 2.5vw, 22px)',
+                    }}
+                  >
+                    Activity Over Time
+                  </Title>
+                </Stack>
+                <ClinicalExportButton />
+
+              </Flex>
 
               <Paper
                 shadow="xs"
