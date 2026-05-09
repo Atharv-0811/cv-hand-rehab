@@ -1,39 +1,74 @@
-'use client';
-import { useRef, useState, useEffect } from 'react';
-import { useHandTracking } from '@/hooks/useHandTracking';
-import { useAudioEngine } from '@/hooks/useAudioEngine';
-import { CameraMirror } from '@/components/CameraMirror';
-import { StretchIndicator } from '@/components/exercises/StretchIndicator';
-import { useSession } from '@/context/SessionContext';
+"use client";
 
-import { ExerciseLayout, ExerciseState } from './ExerciseLayout';
+import { useRef, useState, useEffect } from "react";
+import { useHandTracking } from "@/hooks/useHandTracking";
+import { useAudioEngine } from "@/hooks/useAudioEngine";
+import { CameraMirror } from "@/components/CameraMirror";
+import { StretchIndicator } from "@/components/exercises/StretchIndicator";
+import { useSession } from "@/context/SessionContext";
+import { ExerciseLayout, ExerciseState } from "./ExerciseLayout";
+import { useGamificationContext } from "@/context/GamificationContext";
 
-import { useGamificationContext } from '@/context/GamificationContext';
+import HandCanvas from "@/components/ar/HandCanvas";
+import ProgressFace from "@/components/ar/ProgressFace";
+import { Landmark } from "@/types/hands";
 
 export default function HandOpenClose() {
   const { addXP } = useGamificationContext();
   const { setActiveExercise } = useSession();
-  const [exerciseState, setExerciseState] = useState<ExerciseState>('IDLE');
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const prevTargetRef = useRef<number | null>(null);
+
+  const [exerciseState, setExerciseState] = useState<ExerciseState>("IDLE");
   const [camError, setCamError] = useState<string | null>(null);
   const [isCamReady, setIsCamReady] = useState(false);
 
-  const prevTargetRef = useRef<number | null>(null);
+  // AR STATE
+  const [ghostLandmarks, setGhostLandmarks] = useState<Landmark[] | null>(null);
+  const [isCalibrated, setIsCalibrated] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const isTestRunning = exerciseState === 'RUNNING';
+  /* -------------------------------------------------- */
+  /* 🔥 CRITICAL FIX — tracking must run in calibration */
+  /* -------------------------------------------------- */
+  const isTrackingEnabled =
+    exerciseState === "CALIBRATION" || exerciseState === "RUNNING";
 
-  const { controlValue, currentRatio, isTracked, allTimeBest, sessionTarget, setBaseline } = useHandTracking(videoRef, isTestRunning);
-  const { initAudio, playAudio, pauseAudio, updateFilter, setTrackingStatus, stopAudio, isAudioLoaded } = useAudioEngine();
+  const isRunning = exerciseState === "RUNNING";
+
+  /* HAND TRACKING */
+  const {
+    controlValue,
+    currentRatio,
+    isTracked,
+    allTimeBest,
+    sessionTarget,
+    setBaseline,
+    landmarks,
+  } = useHandTracking(videoRef, isTrackingEnabled);
+
+  /* AR PROGRESS ONLY AFTER CALIBRATION */
+  const arProgress = isCalibrated && isTracked ? currentRatio : 0;
+
+  /* AUDIO ENGINE */
+  const {
+    initAudio,
+    playAudio,
+    pauseAudio,
+    updateFilter,
+    setTrackingStatus,
+    stopAudio,
+    isAudioLoaded,
+  } = useAudioEngine();
 
   useEffect(() => {
-    if (exerciseState === 'RUNNING' && isAudioLoaded) {
-      setTrackingStatus(isTracked);
-      updateFilter(controlValue);
-    }
-  }, [controlValue, isTracked, exerciseState, isAudioLoaded, updateFilter, setTrackingStatus]);
+    if (!isRunning || !isAudioLoaded) return;
+    setTrackingStatus(isTracked);
+    updateFilter(controlValue);
+  }, [controlValue, isTracked, isRunning, isAudioLoaded]);
 
   useEffect(() => {
-    if (exerciseState !== 'RUNNING' || sessionTarget === null) return;
+    if (!isRunning || sessionTarget === null) return;
 
     if (prevTargetRef.current === null) {
       prevTargetRef.current = sessionTarget;
@@ -44,24 +79,34 @@ export default function HandOpenClose() {
       addXP(15);
       prevTargetRef.current = sessionTarget;
     }
-  }, [sessionTarget, exerciseState, addXP]);
+  }, [sessionTarget, isRunning, addXP]);
 
+  /* INIT HARDWARE */
   const handleInitHardware = async () => {
-    setExerciseState('INITIALIZING');
+    setExerciseState("INITIALIZING");
     await initAudio();
-    setExerciseState('CALIBRATION');
+    setExerciseState("CALIBRATION");
   };
 
+  /* 🔥 LOCK BASELINE (NOW WORKS) */
   const handleLockBaseline = () => {
+    if (!landmarks) return; // guard restored
+
+    if (!isCalibrated) {
+      setGhostLandmarks(structuredClone(landmarks));
+      setIsCalibrated(true);
+    }
+
     setBaseline(currentRatio);
-    setExerciseState('RUNNING');
+    setExerciseState("RUNNING");
     playAudio();
   };
 
   const handleExit = () => {
+    pauseAudio();
     stopAudio();
-    setExerciseState('IDLE');
-    setActiveExercise('MENU');
+    setExerciseState("IDLE");
+    setActiveExercise("MENU");
   };
 
   return (
@@ -72,39 +117,52 @@ export default function HandOpenClose() {
       onExit={handleExit}
       leftPanel={
         <>
-          <CameraMirror
-            videoRef={videoRef}
-            onReady={() => setIsCamReady(true)}
-            onError={(err) => setCamError(err)}
-          />
+          <div className="relative w-full h-full">
+            <CameraMirror
+              videoRef={videoRef}
+              onReady={() => setIsCamReady(true)}
+              onError={(err) => setCamError(err)}
+            />
 
-          {camError ? (
-            <div className="bg-dangerRed-50 border border-dangerRed-200 text-dangerRed-700 p-4 rounded-md text-sm font-[var(--font-work-sans)] leading-relaxed">
-              {camError} Please check your browser permissions and try again.
+            <HandCanvas
+              videoRef={videoRef}
+              landmarks={landmarks}
+              progress={arProgress}
+              showLiveHand={isRunning}
+              showGhostHand={isCalibrated}
+              ghostLandmarks={ghostLandmarks}
+            />
+
+            <ProgressFace progress={arProgress} />
+          </div>
+
+          {camError && (
+            <div className="bg-dangerRed-50 border border-dangerRed-200 text-dangerRed-700 p-4 rounded-md text-sm">
+              {camError} Please check camera permissions and reload.
             </div>
-          ) : exerciseState === 'CALIBRATION' ? (
-            <div className="bg-white border border-carbonBlack-200 shadow-[0_1px_4px_rgba(0,0,0,0.06)] rounded-md p-5">
-              <p className="text-sm text-carbonBlack-700 leading-relaxed mb-5 font-[var(--font-work-sans)]">
-                <span className="font-semibold text-carbonBlack-900">Calibration phase.</span>{' '}
-                Stretch your hand open as wide as is comfortable and hold it. Audio is muted. When you are ready, click below to lock your baseline.
+          )}
+
+          {exerciseState === "CALIBRATION" && !camError && (
+            <div className="bg-white border border-carbonBlack-200 rounded-md p-5">
+              <p className="text-sm text-carbonBlack-700 mb-5">
+                <b>Calibration phase.</b> Stretch your hand fully open and hold.
+                Click below to lock baseline.
               </p>
+
               <button
                 onClick={handleLockBaseline}
                 disabled={!isCamReady || !isTracked}
-                className="w-full rounded-md bg-primary-500 text-white px-4 py-3 font-semibold hover:bg-primary-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-[var(--font-work-sans)]"
+                className="w-full rounded-md bg-primary-500 text-white px-4 py-3 font-semibold hover:bg-primary-600 disabled:opacity-40"
               >
-                Lock Baseline &amp; Begin Test
+                Lock Baseline & Begin Test
               </button>
             </div>
-          ) : (
+          )}
+
+          {isRunning && (
             <button
-                onClick={() => {
-                  pauseAudio();
-                  stopAudio();
-                  setExerciseState('IDLE');
-                  setActiveExercise('MENU');
-                }}
-              className="w-full rounded-md bg-white text-carbonBlack-800 px-6 py-3 font-semibold hover:bg-carbonBlack-50 transition-colors border border-carbonBlack-200 shadow-[0_1px_4px_rgba(0,0,0,0.06)] text-sm font-[var(--font-work-sans)]"
+              onClick={handleExit}
+              className="w-full rounded-md bg-white text-carbonBlack-800 px-6 py-3 font-semibold hover:bg-carbonBlack-50 border border-carbonBlack-200"
             >
               End Session
             </button>
@@ -113,66 +171,52 @@ export default function HandOpenClose() {
       }
       rightPanel={
         <>
-          {/* Tracking status */}
           <div
-            className={`px-4 py-3 rounded-md border text-sm font-medium font-[var(--font-work-sans)] flex items-center gap-2 ${
+            className={`px-4 py-3 rounded-md border text-sm font-medium flex items-center gap-2 ${
               isTracked
-                ? 'bg-successGreen-50 border-successGreen-200 text-successGreen-700'
-                : 'bg-dangerRed-50 border-dangerRed-200 text-dangerRed-700'
+                ? "bg-successGreen-50 border-successGreen-200 text-successGreen-700"
+                : "bg-dangerRed-50 border-dangerRed-200 text-dangerRed-700"
             }`}
           >
-            <span
-              className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${
-                isTracked ? 'bg-successGreen-500' : 'bg-dangerRed-400'
-              }`}
-            />
-            {isTracked ? 'Subject in frame' : 'Awaiting subject'}
+            {isTracked ? "Subject in frame" : "Awaiting subject"}
           </div>
 
-          {/* Live telemetry */}
-          <div className="bg-white border border-carbonBlack-200 shadow-[0_1px_4px_rgba(0,0,0,0.06)] rounded-md p-5 flex flex-col gap-4">
-            <span className="text-[11px] uppercase tracking-[0.11em] font-semibold text-carbonBlack-500 font-[var(--font-work-sans)] border-b border-carbonBlack-100 pb-3">
-              Live Telemetry
-            </span>
-
-            <div className="flex flex-col gap-3">
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm text-carbonBlack-600 font-[var(--font-work-sans)]">Current Extension</span>
-                <span className="font-mono text-carbonBlack-900 font-medium text-sm">{currentRatio.toFixed(2)}</span>
-              </div>
-
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm text-carbonBlack-600 font-[var(--font-work-sans)]">Today's Target</span>
-                <span className="font-mono text-carbonBlack-900 font-medium text-sm">
-                  {sessionTarget ? sessionTarget.toFixed(2) : '—'}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm text-carbonBlack-600 font-[var(--font-work-sans)]">Audio Clarity</span>
-                <span className="font-mono text-carbonBlack-900 font-medium text-sm">
-                  {exerciseState === 'RUNNING' ? `${(controlValue * 100).toFixed(0)}%` : 'Muted'}
-                </span>
-              </div>
+          <div className="bg-white border border-carbonBlack-200 rounded-md p-5 flex flex-col gap-4">
+            <div className="flex justify-between">
+              <span>Current Extension</span>
+              <span className="font-mono">{currentRatio.toFixed(2)}</span>
             </div>
 
-            <div className="pt-4 border-t border-carbonBlack-100 flex flex-col gap-1">
-              <span className="text-[11px] uppercase tracking-[0.11em] font-semibold text-carbonBlack-500 font-[var(--font-work-sans)]">
+            <div className="flex justify-between">
+              <span>Today's Target</span>
+              <span className="font-mono">
+                {sessionTarget ? sessionTarget.toFixed(2) : "—"}
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span>Audio Clarity</span>
+              <span className="font-mono">
+                {isRunning ? `${(controlValue * 100).toFixed(0)}%` : "Muted"}
+              </span>
+            </div>
+
+            <div className="pt-4 border-t">
+              <span className="text-[11px] uppercase tracking-widest font-semibold">
                 All-Time Best
               </span>
               <span className="font-mono text-2xl text-primary-600 font-bold">
-                {allTimeBest ? allTimeBest.toFixed(2) : 'No data'}
+                {allTimeBest ? allTimeBest.toFixed(2) : "No data"}
               </span>
             </div>
           </div>
 
-          {/* Stretch visualizer */}
-          {exerciseState === 'RUNNING' && sessionTarget !== null && (
-            <div className="bg-white border border-carbonBlack-200 shadow-[0_1px_4px_rgba(0,0,0,0.06)] rounded-md p-5 flex flex-col gap-4">
-              <span className="text-[11px] uppercase tracking-[0.11em] font-semibold text-carbonBlack-500 font-[var(--font-work-sans)] border-b border-carbonBlack-100 pb-3">
-                Stretch Visualiser
-              </span>
-              <StretchIndicator currentRatio={currentRatio} sessionTarget={sessionTarget} />
+          {isRunning && sessionTarget !== null && (
+            <div className="bg-white border border-carbonBlack-200 rounded-md p-5">
+              <StretchIndicator
+                currentRatio={currentRatio}
+                sessionTarget={sessionTarget}
+              />
             </div>
           )}
         </>

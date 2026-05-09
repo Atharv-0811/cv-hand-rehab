@@ -5,6 +5,7 @@ import { useSession } from '@/context/SessionContext';
 import { ExerciseLayout, ExerciseState } from './ExerciseLayout';
 import { CameraMirror } from '@/components/CameraMirror';
 import { IconBulb } from '@tabler/icons-react';
+import HandCanvas from '@/components/ar/HandCanvas';
 
 const THUMB_TIP = 4;
 const FINGER_TIPS = [8, 12, 16, 20]; // Index, Middle, Ring, Pinky
@@ -21,6 +22,8 @@ const NODES = [
   { x: 0.8, y: 0.6, note: 493.88, label: 'B' },
 ];
 
+type Landmark = { x: number; y: number; z: number };
+
 import { useGamificationContext } from '@/context/GamificationContext';
 
 export default function ArpeggioPath() {
@@ -32,6 +35,9 @@ export default function ArpeggioPath() {
   const [camError, setCamError] = useState<string | null>(null);
   const [isCamReady, setIsCamReady] = useState(false);
   const [isTracked, setIsTracked] = useState(false);
+
+  // HandCanvas landmarks state
+  const [landmarks, setLandmarks] = useState<Landmark[] | null>(null);
 
   // Game state
   const [cursorPos, setCursorPos] = useState<{ x: number, y: number } | null>(null);
@@ -184,6 +190,8 @@ export default function ArpeggioPath() {
       handsModel.onResults((results: any) => {
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
           setIsTracked(true);
+          setLandmarks(results.multiHandLandmarks[0]);
+
           const landmarks = results.multiHandLandmarks[0];
 
           const thumb = landmarks[THUMB_TIP];
@@ -369,6 +377,7 @@ export default function ArpeggioPath() {
 
         } else {
           setIsTracked(false);
+          setLandmarks(null);
           setIsPinched(false);
           setIsTooFast(false);
           setWrongFinger(false);
@@ -409,6 +418,15 @@ export default function ArpeggioPath() {
         <div className="flex flex-col gap-4">
           <div className="relative w-full rounded-md overflow-hidden bg-carbonBlack-50 border border-carbonBlack-200">
             <CameraMirror videoRef={videoRef} onReady={() => setIsCamReady(true)} onError={(err) => setCamError(err)} />
+
+            {/* HandCanvas overlay — renders the skeleton on top of the camera feed */}
+            <HandCanvas
+              videoRef={videoRef}
+              landmarks={landmarks}
+              showLiveHand={exerciseState === 'RUNNING'}
+              showGhostHand={false}
+              progress={0}
+            />
 
             {exerciseState === 'CALIBRATION' && (
               <div className="absolute inset-0 bg-carbonBlack-900/40 backdrop-blur-sm z-30 flex items-center justify-center p-6">
